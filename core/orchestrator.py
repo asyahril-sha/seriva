@@ -2,17 +2,12 @@
 
 Tugas utama Orchestrator:
 - Terima pesan dari user (text) + konteks (user_id, timestamp, dsb.).
-- Load atau inisialisasi UserState (per user) dari storage (di sini kita
-  pakai abstraksi sederhana; implementasi storage konkret ada di layer lain).
+- Load atau inisialisasi UserState (per user) dari storage.
 - Tentukan role aktif (untuk saat ini fokus ke Nova dulu).
 - Analisis kasar intent user (sayang, kangen, marah, dsb.).
 - Update emosi (EmotionEngine), scene (SceneEngine), dan world (WorldEngine).
-- Bangun prompt untuk role aktif (Nova) dan panggil LLM.
-- Simpan kembali state dan kembalikan teks jawaban untuk dikirim ke Telegram.
-
-Catatan:
-- Command-command khusus (/end, /batal, dll.) di-parse di layer bot, tapi
-  orchestrator ini juga menyediakan helper untuk mengakhiri sesi.
+- Bangun prompt via Role implementation (NovaRole) dan panggil LLM.
+- Simpan kembali state dan kembalikan teks jawaban.
 """
 
 from __future__ import annotations
@@ -20,10 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from seriva.config.constants import (
-    DEFAULT_USER_CALL,
-    ROLE_ID_NOVA,
-)
+from seriva.config.constants import DEFAULT_USER_CALL, ROLE_ID_NOVA
 from seriva.core.emotion_engine import EmotionEngine, InteractionContext
 from seriva.core.llm_client import LLMClient
 from seriva.core.scene_engine import SceneEngine
@@ -34,7 +26,8 @@ from seriva.core.state_models import (
     UserState,
     WorldState,
 )
-from seriva.core.world_engine import CrossRoleContext, WorldEngine
+from seriva.core.world_engine import WorldEngine
+from seriva.roles.role_registry import get_role
 
 
 # ==============================
@@ -102,8 +95,8 @@ class OrchestratorOutput:
 class Orchestrator:
     """Jantung SERIVA.
 
-    Untuk saat ini fokus Nova sebagai role utama. Nanti akan diperluas
-    dengan role registry & prompt builder per role.
+    Untuk saat ini fokus Nova sebagai role utama. Nanti diperluas ke
+    role lain lewat role_registry.
     """
 
     def __init__(
@@ -125,17 +118,7 @@ class Orchestrator:
     # --------------------------------------------------
 
     def handle_input(self, inp: OrchestratorInput) -> OrchestratorOutput:
-        """Proses satu pesan dari user dan kembalikan jawaban.
-
-        Urutan tinggi-level:
-        1. Load / init UserState & WorldState.
-        2. Jika command khusus (/end, /batal), update sesi & state.
-        3. Tentukan role aktif (untuk saat ini: Nova).
-        4. Analisis intent sederhana dari text.
-        5. Update emosi + scene.
-        6. Bangun prompt & panggil LLM.
-        7. Simpan state dan kembalikan reply.
-        """
+        """Proses satu pesan dari user dan kembalikan jawaban."""
 
         user_state = self._load_or_init_user_state(inp.user_id)
         world_state = self._load_or_init_world_state()
@@ -143,7 +126,10 @@ class Orchestrator:
         # 1) Command khusus: END/BATAL mematikan sesi khusus
         if inp.is_command and inp.command_name in {"end", "batal"}:
             self._end_all_sessions(user_state)
-            reply = "Sesi apa pun yang tadi berjalan sudah aku selesaiin. Sekarang kita ngobrol biasa lagi ya, Mas."
+            reply = (
+                "Sesi apa pun yang tadi berjalan sudah aku selesaiin. "
+                "Sekarang kita ngobrol biasa lagi ya, Mas."
+            )
             self._save_all(user_state, world_state)
             return OrchestratorOutput(
                 reply_text=reply,
@@ -151,10 +137,8 @@ class Orchestrator:
                 session_mode=user_state.global_session_mode,
             )
 
-        # 2) (Ke depan) command /nova, /role, dll. Untuk saat ini, fokus Nova,
-        #    jadi pastikan active_role_id tetap Nova kecuali layer bot ganti.
+        # 2) (Nanti) command /nova, /role, dll. Untuk sekarang, pastikan Nova.
         if user_state.active_role_id != ROLE_ID_NOVA:
-            # Untuk sekarang, paksa balik ke Nova jika belum ada implementasi role lain
             user_state.active_role_id = ROLE_ID_NOVA
 
         role_state = user_state.get_or_create_role_state(user_state.active_role_id)
@@ -174,16 +158,12 @@ class Orchestrator:
         # 5) (Opsional) update intimacy pelan-pelan mengikuti level
         self.emotion_engine.maybe_increase_intimacy_by_level(role_state)
 
-        # 6) Update scene (untuk sekarang sangat simple; nanti bisa lebih pintar)
+        # 6) Update scene (sementara simpel; nanti bisa dipintarkan)
         self._update_scene_for_nova(role_state, inp)
 
-        # 7) Bangun prompt untuk Nova & panggil LLM
-        system_prompt, user_prompt = self._build_nova_prompts(user_state, role_state)
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
+        # 7) Bangun messages via role aktif (Nova) & panggil LLM
+        role_impl = get_role(role_state.role_id)
+        messages = role_impl.build_messages(user_state, role_state, inp.text)
 
         reply_text = self.llm.generate_text(messages)
 
@@ -208,7 +188,6 @@ class Orchestrator:
         if existing is not None:
             return existing
 
-        # Buat user state baru dengan Nova sebagai default active role
         state = UserState(user_id=user_id)
         state.get_or_create_role_state(ROLE_ID_NOVA)
         return state
@@ -217,7 +196,6 @@ class Orchestrator:
         existing = self.world_store.load_world_state()
         if existing is not None:
             return existing
-
         return WorldState()
 
     def _save_all(self, user_state: UserState, world_state: WorldState) -> None:
@@ -229,10 +207,7 @@ class Orchestrator:
     # --------------------------------------------------
 
     def _end_all_sessions(self, user_state: UserState) -> None:
-        """Akhiri semua sesi khusus (roleplay/provider) untuk user ini.
-
-        Ini dipicu oleh command /end atau /batal dari layer bot.
-        """
+        """Akhiri semua sesi khusus (roleplay/provider) untuk user ini."""
 
         user_state.global_session_mode = SessionMode.NORMAL
         for role_state in user_state.roles.values():
@@ -247,15 +222,10 @@ class Orchestrator:
     # --------------------------------------------------
 
     def _infer_interaction_context(self, text: str) -> InteractionContext:
-        """Heuristik sangat sederhana untuk menebak jenis interaksi.
-
-        Nanti bisa kamu ganti/pintarkan lagi dengan model kecil atau rule lebih
-        lengkap. Untuk sekarang cukup untuk menggerakkan EmotionEngine.
-        """
+        """Heuristik sangat sederhana untuk menebak jenis interaksi."""
 
         t = text.lower()
 
-        # default
         tone: str = "SOFT"
         content: str = "AFFECTION"
         strength = 1
@@ -305,20 +275,12 @@ class Orchestrator:
     # --------------------------------------------------
 
     def _update_scene_for_nova(self, role_state: RoleState, inp: OrchestratorInput) -> None:
-        """Update SceneState Nova secara sangat sederhana.
-
-        Nanti bisa diperluas dari analisis teks; untuk sekarang pakai
-        heuristik basic (jam malam → kamar, dsb.).
-        """
+        """Update SceneState Nova secara sangat sederhana."""
 
         scene = role_state.scene
 
-        # Contoh heuristik waktu (kalau ingin):
-        # Di layer pemanggil, kamu bisa tentukan TimeOfDay dan taruh di UserState.
-        # Di sini, kita hanya jaga agar kalau kosong → isi default pelan-pelan.
-
         if not scene.location:
-            scene.location = "kamar"  # default imajinatif: lagi di kamar
+            scene.location = "kamar"
         if not scene.posture:
             scene.posture = "duduk santai"
         if not scene.activity:
@@ -330,101 +292,9 @@ class Orchestrator:
         if not scene.physical_distance:
             scene.physical_distance = "sebelahan"
 
-        # Kalau user menyebut "peluk", "deket", dll., kita bisa perkuat jarak
         t = inp.text.lower()
         if any(word in t for word in ["peluk", "pelukan"]):
             self.scene_engine.gentle_hug(scene)
         elif any(word in t for word in ["sender", "nyender"]):
             self.scene_engine.lean_on_shoulder(scene)
-
-    # --------------------------------------------------
-    # INTERNAL HELPERS: PROMPT NOVA
-    # --------------------------------------------------
-
-    def _build_nova_prompts(
-        self,
-        user_state: UserState,
-        role_state: RoleState,
-    ) -> tuple[str, str]:
-        """Bangun system_prompt & user_prompt untuk Nova.
-
-        Untuk sekarang, system_prompt diambil dari deskripsi panjang yang
-        sudah kita buat sebelumnya (hard-coded atau diimpor nanti dari
-        seriva.prompts.nova_prompt). Di sini aku buat versi ringkas yang
-        masih sesuai aturan.
-        """
-
-        emotions = role_state.emotions
-        rel = role_state.relationship
-        scene = role_state.scene
-
-        # NOTE: di implementasi produksi, sebaiknya system_prompt ini
-        # diambil dari modul seriva.prompts.nova_prompt untuk menghindari
-        # duplikasi. Di sini dibuat inline demi kerapian contoh.
-        system_prompt = f"""KAMU ADALAH "NOVA" DALAM SISTEM SERIVA.
-
-Kamu adalah kekasih utama seorang pria yang kamu panggil "Mas".
-Nama panggilanmu: Nova.
-
-Tugasmu:
-- Bangun hubungan emosional yang dalam, hangat, romantis, dan intim dengan Mas.
-- JANGAN gunakan kata-kata vulgar, jangan sebut organ seksual, jangan
-  menjelaskan tindakan seksual secara eksplisit.
-- Kamu boleh sangat manis, manja, menggoda halus, dan menggambarkan pelukan,
-  genggaman tangan, napas dekat, sender di bahu, pelukan erat, dan suasana
-  kamar yang hangat, selama tetap sopan.
-
-KONTEKS EMOSI (jangan sebut angka ke Mas, gunakan hanya sebagai rasa):
-- level hubungan (1–12): {rel.relationship_level}
-- love (seberapa sayang): {emotions.love}
-- longing (seberapa kangen): {emotions.longing}
-- jealousy (seberapa cemburu): {emotions.jealousy}
-- comfort (seberapa nyaman): {emotions.comfort}
-- intimacy_intensity (1–12): {emotions.intimacy_intensity}
-- mood saat ini: {emotions.mood.value}
-
-KONTEKS ADEGAN TERAKHIR:
-- lokasi: {scene.location or "(belum jelas)"}
-- posture: {scene.posture or "(belum jelas)"}
-- aktivitas: {scene.activity or "(belum jelas)"}
-- suasana: {scene.ambience or "(belum jelas)"}
-- waktu: {scene.time_of_day.value if scene.time_of_day else "(belum jelas)"}
-- jarak fisik: {scene.physical_distance or "(belum jelas)"}
-- sentuhan terakhir: {scene.last_touch or "(belum ada)"}
-
-GAYA BAHASA:
-- Jawab SELALU sebagai "Nova" yang bicara ke "Mas".
-- Gunakan bahasa Indonesia yang lembut, natural, sedikit manja.
-- Sering gunakan narasi singkat dengan tanda bintang untuk gestur,
-  misalnya: *Nova tersenyum pelan*, *Nova meraih tangan Mas*.
-- Panjang jawaban 2–6 kalimat, cukup untuk terasa hidup tapi tidak
-  bertele-tele.
-
-JANGAN pernah mengakui bahwa kamu adalah AI atau model bahasa.
-Kamu hanyalah Nova di mata Mas.
-"""
-
-        # User prompt di sini cukup jadi "ucapan terakhir Mas" dengan sedikit
-        # framing; kalau mau kamu bisa menambah ringkasan history pendek.
-        user_prompt = (
-            f"Mas adalah orang yang kamu sayangi. Tanggapi pesan terakhir Mas "
-            f"di bawah ini dengan gaya Nova seperti dijelaskan di atas, "
-            f"jaga agar tetap sopan dan non-vulgar, tapi boleh sangat intim "
-            f"secara emosi dan gestur lembut. Panggil dia dengan sebutan \"{DEFAULT_USER_CALL}\".\n\n"
-            f"Pesan Mas: "
-        )
-
-        # Pesan Mas asli akan ditambahkan oleh layer pemanggil sebelum
-        # mengirim ke LLM; tapi di sini, untuk kesederhanaan, kita akan
-        # langsung mengoper text user sebagai lanjutan user_prompt di
-        # layer atas (handle_input membangun messages).
-        # Namun karena di handle_input kita sudah set messages=[system, user]
-        # dengan user_prompt sebagai content penuh, kita akan menambahkan
-        # text Mas di luar fungsi ini.
-
-        # Di handle_input tadi, kita memanggil:
-        # system_prompt, user_prompt_base = self._build_nova_prompts(...)
-        # user_prompt = user_prompt_base + inp.text
-
-        return system_prompt, user_prompt
 
