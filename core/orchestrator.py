@@ -9,6 +9,8 @@ Tugas utama Orchestrator:
 - Bangun prompt via Role implementation (NovaRole, SiskaRole, dst.) dan panggil LLM.
 - Tangani command khusus: /batal, /flashback, /nego, /deal, /mulai.
 - Simpan kembali state dan kembalikan teks jawaban.
+
+Sekarang /flashback menggunakan MilestoneStore jika ada kenangan tersimpan.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from seriva.core.state_models import (
     WorldState,
 )
 from seriva.core.world_engine import WorldEngine
+from seriva.memory.milestones import MilestoneStore
 from seriva.roles.role_registry import get_role
 
 
@@ -96,7 +99,7 @@ class OrchestratorOutput:
 class Orchestrator:
     """Jantung SERIVA.
 
-    Menyatukan state, emosi, scene, world, role, dan LLMClient.
+    Menyatukan state, emosi, scene, world, role, memory, dan LLMClient.
     """
 
     def __init__(
@@ -104,6 +107,7 @@ class Orchestrator:
         user_store: UserStateStore,
         world_store: WorldStateStore,
         llm_client: Optional[LLMClient] = None,
+        milestone_store: Optional[MilestoneStore] = None,
     ) -> None:
         self.user_store = user_store
         self.world_store = world_store
@@ -112,6 +116,9 @@ class Orchestrator:
         self.emotion_engine = EmotionEngine()
         self.scene_engine = SceneEngine()
         self.world_engine = WorldEngine()
+
+        # Memory milestones untuk flashback
+        self.milestones = milestone_store or MilestoneStore()
 
     # --------------------------------------------------
     # PUBLIC ENTRYPOINT
@@ -196,6 +203,9 @@ class Orchestrator:
 
         # 9) Update waktu interaksi terakhir
         user_state.last_interaction_ts = inp.timestamp
+
+        # (Opsional) kamu bisa menambahkan milestone di sini kalau mendeteksi
+        # momen penting, misalnya first_confession. Untuk sekarang belum otomatis.
 
         # 10) Simpan state
         self._save_all(user_state, world_state)
@@ -341,17 +351,35 @@ class Orchestrator:
         world_state: WorldState,
         inp: OrchestratorInput,
     ) -> OrchestratorOutput:
-        """Tangani /flashback: minta role aktif cerita satu momen indah."""
+        """Tangani /flashback: minta role aktif cerita satu momen indah.
+
+        Jika ada milestone di MilestoneStore, gunakan sebagai bahan cerita.
+        Kalau tidak ada, pakai instruksi generik.
+        """
 
         role_state = user_state.get_or_create_role_state(user_state.active_role_id)
 
-        # Instruksi generik ke role: ceritakan satu kenangan indah/khas.
-        flashback_instruction = (
-            "Mas meminta kamu untuk mengingat dan menceritakan satu momen indah "
-            "atau momen yang sangat berkesan di antara kalian berdua. Ceritakan "
-            "secara lembut dan romantis, tetap non-vulgar, fokus pada emosi dan "
-            "gestur halus, seolah ini adalah flashback kenangan manis."
+        # Coba ambil milestone terbaik untuk flashback
+        m = self.milestones.get_best_flashback_candidate(
+            user_id=user_state.user_id,
+            role_id=role_state.role_id,
         )
+
+        if m:
+            flashback_instruction = (
+                "Mas meminta kamu untuk mengingat dan menceritakan ulang secara detail, lembut, "
+                "dan romantis kenangan berikut ini: "
+                + m.description
+                + "\n\nTambahkan perasaanmu waktu itu dan gestur fisik halus, tetap non-vulgar."
+            )
+        else:
+            # fallback generik
+            flashback_instruction = (
+                "Mas meminta kamu untuk mengingat dan menceritakan satu momen indah "
+                "atau momen yang sangat berkesan di antara kalian berdua. Ceritakan "
+                "secara lembut dan romantis, tetap non-vulgar, fokus pada emosi dan "
+                "gestur halus, seolah ini adalah flashback kenangan manis."
+            )
 
         role_impl = get_role(role_state.role_id)
         messages = role_impl.build_messages(user_state, role_state, flashback_instruction)
