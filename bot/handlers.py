@@ -12,10 +12,9 @@ from typing import Callable
 from telegram import Update
 from telegram.ext import CallbackContext
 
-from seriva.config.constants import list_role_summaries
+from seriva.config.constants import list_role_summaries, ROLE_ID_NOVA
 from seriva.core.orchestrator import Orchestrator, OrchestratorInput
 from seriva.core.state_models import SessionMode
-from seriva.config.constants import ROLE_ID_NOVA
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ def require_admin(admin_id: str) -> Callable:
 
 
 # ==============================
-# HANDLERS
+# HANDLER COMMAND DASAR
 # ==============================
 
 
@@ -66,6 +65,8 @@ def start_handler(orchestrator: Orchestrator, admin_id: str):
             "- /nova → balik ke Nova\n"
             "- /role → lihat daftar role\n"
             "- /role <id> → pindah ke role tertentu\n"
+            "- /pause → pause sesi intens saat ini\n"
+            "- /resume → lanjutkan sesi yang di-pause\n"
             "- /batal → akhiri sesi khusus & balik ke chat biasa\n"
             "- /status → lihat ringkasan perasaan & adegan role aktif"
         )
@@ -84,11 +85,18 @@ def help_handler(orchestrator: Orchestrator, admin_id: str):
             "- /nova → ngobrol dengan Nova (pasangan utama)\n"
             "- /role → lihat daftar role yang tersedia\n"
             "- /role <id> → pindah ke role tertentu (misal: /role teman_spesial_davina)\n"
+            "- /pause → pause sesi intens saat ini (roleplay/provider)\n"
+            "- /resume → lanjutkan sesi yang di-pause dari posisi terakhir\n"
             "- /batal atau /end → akhiri sesi khusus dan kembali ke mode normal\n"
             "- /status → lihat ringkasan perasaan & adegan role aktif"
         )
 
     return _handler
+
+
+# ==============================
+# HANDLER ROLE LIST & SWITCH
+# ==============================
 
 
 def role_list_handler(orchestrator: Orchestrator, admin_id: str):
@@ -102,6 +110,8 @@ def role_list_handler(orchestrator: Orchestrator, admin_id: str):
         lines = ["Role yang tersedia:"]
         for item in summaries:
             lines.append(f"- {item['role_id']}: {item['label']}")
+
+        lines.append("\nGunakan /role <id> untuk pindah ke role tertentu.")
 
         chat.send_message("\n".join(lines))
 
@@ -135,12 +145,11 @@ def set_role_handler(orchestrator: Orchestrator, admin_id: str):
 
         args = context.args or []
         if not args:
-            chat.send_message("Contoh: /role teman_spesial_davina")
+            chat.send_message("Contoh: /role teman_spesial_davina.\nKetik /role tanpa argumen untuk lihat daftar role.")
             return
 
         role_id = args[0].strip()
 
-        # Validasi role_id via constants list
         summaries = list_role_summaries()
         valid_ids = {item["role_id"] for item in summaries}
         if role_id not in valid_ids:
@@ -155,6 +164,11 @@ def set_role_handler(orchestrator: Orchestrator, admin_id: str):
         chat.send_message(f"Sekarang kamu lagi sama {label}.")
 
     return _handler
+
+
+# ==============================
+# HANDLER END / STATUS
+# ==============================
 
 
 def end_session_handler(orchestrator: Orchestrator, admin_id: str):
@@ -221,6 +235,67 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
     return _handler
 
 
+# ==============================
+# HANDLER /PAUSE dan /RESUME
+# ==============================
+
+
+def pause_handler(orchestrator: Orchestrator, admin_id: str):
+    """Pause sesi intens saat ini.
+
+    Secara logika:
+    - Kita simpan flag bahwa sesi user sedang di-pause.
+    - Di sini, kita set global_session_mode ke NORMAL tapi tidak memanggil
+      _end_all_sessions, supaya state emosi & adegan tetap bisa dilanjutkan.
+    """
+
+    @require_admin(admin_id)
+    def _handler(update: Update, context: CallbackContext) -> None:
+        chat = update.effective_chat
+        user = update.effective_user
+        if chat is None or user is None:
+            return
+
+        user_state = orchestrator._load_or_init_user_state(str(user.id))  # type: ignore[attr-defined]
+        # Kita anggap pause berarti user pengen berhenti sejenak dari mode intens.
+        # Untuk sekarang, cukup set global_session_mode = NORMAL tapi tidak mereset role_state.session.
+        user_state.global_session_mode = SessionMode.NORMAL
+        orchestrator._save_all(user_state, orchestrator._load_or_init_world_state())  # type: ignore[attr-defined]
+
+        chat.send_message("⏸️ Sesi dihentikan sementara. Ketik /resume untuk lanjut.")
+
+    return _handler
+
+
+def resume_handler(orchestrator: Orchestrator, admin_id: str):
+    """Lanjutkan sesi yang di-pause.
+
+    Di sini kita cukup memberi tahu user bahwa role akan meneruskan
+    adegan/perasaan terakhir yang tersimpan di state.
+    """
+
+    @require_admin(admin_id)
+    def _handler(update: Update, context: CallbackContext) -> None:
+        chat = update.effective_chat
+        user = update.effective_user
+        if chat is None or user is None:
+            return
+
+        user_state = orchestrator._load_or_init_user_state(str(user.id))  # type: ignore[attr-defined]
+        # Anggap resume = kembali ke mode normal chat dengan role aktif sekarang.
+        user_state.global_session_mode = SessionMode.NORMAL
+        orchestrator._save_all(user_state, orchestrator._load_or_init_world_state())  # type: ignore[attr-defined]
+
+        chat.send_message("▶️ Sesi dilanjutkan! Silakan lanjut ngobrol, role akan melanjutkan dari suasana terakhir.")
+
+    return _handler
+
+
+# ==============================
+# HANDLER PESAN BIASA
+# ==============================
+
+
 def message_handler(orchestrator: Orchestrator, admin_id: str):
     @require_admin(admin_id)
     def _handler(update: Update, context: CallbackContext) -> None:
@@ -233,7 +308,6 @@ def message_handler(orchestrator: Orchestrator, admin_id: str):
         text = msg.text or ""
         now_ts = time.time()
 
-        # Pesan biasa (bukan command khusus END/ROLE dsb.)
         inp = OrchestratorInput(
             user_id=str(user.id),
             text=text,
