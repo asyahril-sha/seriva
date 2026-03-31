@@ -3,10 +3,11 @@
 Tugas utama Orchestrator:
 - Terima pesan dari user (text) + konteks (user_id, timestamp, dsb.).
 - Load atau inisialisasi UserState (per user) dari storage.
-- Tentukan role aktif (untuk saat ini fokus ke Nova dulu).
+- Tentukan role aktif (Nova, Siska, Davina, dll.).
 - Analisis kasar intent user (sayang, kangen, marah, dsb.).
 - Update emosi (EmotionEngine), scene (SceneEngine), dan world (WorldEngine).
-- Bangun prompt via Role implementation (NovaRole) dan panggil LLM.
+- Bangun prompt via Role implementation (NovaRole, SiskaRole, dst.) dan panggil LLM.
+- Tangani command khusus: /batal, /flashback, /nego, /deal, /mulai.
 - Simpan kembali state dan kembalikan teks jawaban.
 """
 
@@ -15,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from seriva.config.constants import DEFAULT_USER_CALL, ROLE_ID_NOVA
+from seriva.config.constants import DEFAULT_USER_CALL, ROLE_ID_NOVA, ROLES
 from seriva.core.emotion_engine import EmotionEngine, InteractionContext
 from seriva.core.llm_client import LLMClient
 from seriva.core.scene_engine import SceneEngine
@@ -74,7 +75,7 @@ class OrchestratorInput:
 
     # (opsional) hasil parse command oleh layer bot
     is_command: bool = False
-    command_name: Optional[str] = None  # misal: "nova", "role", "end", "batal"
+    command_name: Optional[str] = None  # misal: "nova", "role", "end", "nego", "mulai", "flashback"
     command_arg: Optional[str] = None   # misal: role_id setelah /role
 
 
@@ -95,8 +96,7 @@ class OrchestratorOutput:
 class Orchestrator:
     """Jantung SERIVA.
 
-    Untuk saat ini fokus Nova sebagai role utama. Nanti diperluas ke
-    role lain lewat role_registry.
+    Menyatukan state, emosi, scene, world, role, dan LLMClient.
     """
 
     def __init__(
@@ -123,7 +123,15 @@ class Orchestrator:
         user_state = self._load_or_init_user_state(inp.user_id)
         world_state = self._load_or_init_world_state()
 
-        # 1) Command khusus: END/BATAL mematikan sesi khusus
+        # 0) Perintah khusus: /flashback
+        if inp.is_command and inp.command_name == "flashback":
+            return self._handle_flashback(user_state, world_state, inp)
+
+        # 1) Perintah provider: /nego, /deal, /mulai
+        if inp.is_command and inp.command_name in {"nego", "deal", "mulai"}:
+            return self._handle_provider_commands(user_state, world_state, inp)
+
+        # 2) Command END/BATAL mematikan sesi khusus
         if inp.is_command and inp.command_name in {"end", "batal"}:
             self._end_all_sessions(user_state)
             reply = (
@@ -137,17 +145,20 @@ class Orchestrator:
                 session_mode=user_state.global_session_mode,
             )
 
-        # 2) (Nanti) command /nova, /role, dll. Untuk sekarang, pastikan Nova.
-        if user_state.active_role_id != ROLE_ID_NOVA:
+        # 3) (Nanti) command /nova, /role, dll. ditangani di layer bot dengan
+        #    langsung mengubah active_role_id di UserState. Di sini kita hanya
+        #    memastikan selalu ada role_state untuk role aktif.
+        if user_state.active_role_id not in ROLES:
+            # fallback aman: paksa ke Nova jika role tidak dikenal
             user_state.active_role_id = ROLE_ID_NOVA
 
         role_state = user_state.get_or_create_role_state(user_state.active_role_id)
 
-        # 3) Interpretasi intent dasar dari teks user
+        # 4) Interpretasi intent dasar dari teks user
         interaction_ctx = self._infer_interaction_context(inp.text)
         is_negative = self._is_negative_text(inp.text)
 
-        # 4) Update emosi berdasarkan interaksi
+        # 5) Update emosi berdasarkan interaksi
         self.emotion_engine.register_user_interaction(
             user_state=user_state,
             role_id=role_state.role_id,
@@ -155,22 +166,38 @@ class Orchestrator:
             negative=is_negative,
         )
 
-        # 5) (Opsional) update intimacy pelan-pelan mengikuti level
+        # 6) (Opsional) update intimacy pelan-pelan mengikuti level
         self.emotion_engine.maybe_increase_intimacy_by_level(role_state)
 
-        # 6) Update scene (sementara simpel; nanti bisa dipintarkan)
-        self._update_scene_for_nova(role_state, inp)
+        # 7) Update scene (sementara simpel; Nova punya helper khusus)
+        if role_state.role_id == ROLE_ID_NOVA:
+            self._update_scene_for_nova(role_state, inp)
+        else:
+            # Default: kalau belum ada nilai, isi baseline halus
+            scene = role_state.scene
+            if not scene.location:
+                scene.location = "ruang yang tenang"
+            if not scene.posture:
+                scene.posture = "duduk berhadapan"
+            if not scene.activity:
+                scene.activity = "ngobrol berdua"
+            if not scene.ambience:
+                scene.ambience = "suasana hangat, lampu tidak terlalu terang"
+            if scene.time_of_day is None:
+                scene.time_of_day = TimeOfDay.NIGHT
+            if not scene.physical_distance:
+                scene.physical_distance = "sebelahan"
 
-        # 7) Bangun messages via role aktif (Nova) & panggil LLM
+        # 8) Bangun messages via role aktif & panggil LLM
         role_impl = get_role(role_state.role_id)
         messages = role_impl.build_messages(user_state, role_state, inp.text)
 
         reply_text = self.llm.generate_text(messages)
 
-        # 8) Update waktu interaksi terakhir
+        # 9) Update waktu interaksi terakhir
         user_state.last_interaction_ts = inp.timestamp
 
-        # 9) Simpan state
+        # 10) Simpan state
         self._save_all(user_state, world_state)
 
         return OrchestratorOutput(
@@ -216,6 +243,12 @@ class Orchestrator:
             role_state.session.deal_confirmed = False
             role_state.session.negotiated_price = None
             role_state.session.declared_duration_minutes = None
+
+    def _is_provider_role(self, role_id: str) -> bool:
+        info = ROLES.get(role_id)
+        if not info:
+            return False
+        return info.category in {"TERAPIS_PIJAT", "TEMAN_SPESIAL"}
 
     # --------------------------------------------------
     # INTERNAL HELPERS: SIMPLE INTENT PARSING
@@ -298,3 +331,179 @@ class Orchestrator:
         elif any(word in t for word in ["sender", "nyender"]):
             self.scene_engine.lean_on_shoulder(scene)
 
+    # --------------------------------------------------
+    # COMMAND KHUSUS: FLASHBACK
+    # --------------------------------------------------
+
+    def _handle_flashback(
+        self,
+        user_state: UserState,
+        world_state: WorldState,
+        inp: OrchestratorInput,
+    ) -> OrchestratorOutput:
+        """Tangani /flashback: minta role aktif cerita satu momen indah."""
+
+        role_state = user_state.get_or_create_role_state(user_state.active_role_id)
+
+        # Instruksi generik ke role: ceritakan satu kenangan indah/khas.
+        flashback_instruction = (
+            "Mas meminta kamu untuk mengingat dan menceritakan satu momen indah "
+            "atau momen yang sangat berkesan di antara kalian berdua. Ceritakan "
+            "secara lembut dan romantis, tetap non-vulgar, fokus pada emosi dan "
+            "gestur halus, seolah ini adalah flashback kenangan manis."
+        )
+
+        role_impl = get_role(role_state.role_id)
+        messages = role_impl.build_messages(user_state, role_state, flashback_instruction)
+
+        reply_text = self.llm.generate_text(messages)
+
+        user_state.last_interaction_ts = inp.timestamp
+        self._save_all(user_state, world_state)
+
+        return OrchestratorOutput(
+            reply_text=reply_text,
+            active_role_id=user_state.active_role_id,
+            session_mode=user_state.global_session_mode,
+        )
+
+    # --------------------------------------------------
+    # COMMAND KHUSUS: PROVIDER (/nego, /deal, /mulai)
+    # --------------------------------------------------
+
+    def _handle_provider_commands(
+        self,
+        user_state: UserState,
+        world_state: WorldState,
+        inp: OrchestratorInput,
+    ) -> OrchestratorOutput:
+        role_state = user_state.get_or_create_role_state(user_state.active_role_id)
+
+        # Hanya berlaku untuk role provider (terapis atau teman spesial)
+        if not self._is_provider_role(role_state.role_id):
+            reply = (
+                "Perintah ini cuma berlaku untuk terapis pijat atau teman spesial, Mas. "
+                "Pindah dulu ke role mereka pakai /role."
+            )
+            self._save_all(user_state, world_state)
+            return OrchestratorOutput(
+                reply_text=reply,
+                active_role_id=user_state.active_role_id,
+                session_mode=user_state.global_session_mode,
+            )
+
+        if inp.command_name == "nego":
+            reply = self._handle_provider_nego(user_state, role_state, inp)
+        elif inp.command_name == "deal":
+            reply = self._handle_provider_deal(user_state, role_state, inp)
+        else:  # "mulai"
+            reply = self._handle_provider_mulai(user_state, role_state, inp)
+
+        user_state.last_interaction_ts = inp.timestamp
+        self._save_all(user_state, world_state)
+        return OrchestratorOutput(
+            reply_text=reply,
+            active_role_id=user_state.active_role_id,
+            session_mode=user_state.global_session_mode,
+        )
+
+    def _handle_provider_nego(self, user_state: UserState, role_state: RoleState, inp: OrchestratorInput) -> str:
+        """Tangani /nego <harga> untuk role provider."""
+
+        parts = inp.text.strip().split()
+        if len(parts) < 2:
+            return "Contoh pakai: /nego 250000"
+
+        price_str = parts[1]
+        try:
+            price = int(price_str)
+        except ValueError:
+            return "Mas, tulis angkanya aja ya. Contoh: /nego 250000"
+
+        session = role_state.session
+        session.negotiated_price = price
+        session.deal_confirmed = False
+
+        role_info = ROLES.get(role_state.role_id)
+        label_name = role_info.display_name if role_info else "aku"
+
+        if role_info and role_info.category == "TERAPIS_PIJAT":
+            return (
+                f"{label_name} senyum pelan. \"Oke ya Mas, kita sepakat di Rp{price:,}. "
+                "Kalau Mas setuju, ketik /deal biar aku siapin suasananya.\""
+            )
+        else:  # TEMAN_SPESIAL
+            return (
+                f"{label_name} mendekat sedikit. \"Untuk malam spesial ini di Rp{price:,}, "
+                "aku bakal fokus bikin Mas senyaman mungkin. Kalau Mas fix, ketik /deal ya.\""
+            )
+
+    def _handle_provider_deal(self, user_state: UserState, role_state: RoleState, inp: OrchestratorInput) -> str:
+        """Tangani /deal setelah /nego."""
+
+        session = role_state.session
+        role_info = ROLES.get(role_state.role_id)
+        label_name = role_info.display_name if role_info else "aku"
+
+        if session.negotiated_price is None:
+            return "Belum ada harga yang disepakati, Mas. Nego dulu pakai /nego <angka>."
+
+        session.deal_confirmed = True
+
+        # Untuk teman spesial, set durasi imajiner (misal 6 jam = 360 menit)
+        if role_info and role_info.category == "TEMAN_SPESIAL":
+            session.declared_duration_minutes = 360
+            return (
+                f"✅ Booking dikonfirmasi, Mas. Malam ini {label_name} nemenin Mas penuh. "
+                "Kalau Mas sudah siap, ketik /mulai biar kita mulai sesi pertama."
+            )
+
+        # Terapis pijat, tanpa durasi khusus
+        return (
+            f"✅ Deal ya Mas, Rp{session.negotiated_price:,}. "
+            f"{label_name} siap siapin suasana. Kalau Mas mau mulai, ketik /mulai."
+        )
+
+    def _handle_provider_mulai(self, user_state: UserState, role_state: RoleState, inp: OrchestratorInput) -> str:
+        """Tangani /mulai untuk memulai sesi provider."""
+
+        session = role_state.session
+        role_info = ROLES.get(role_state.role_id)
+        label_name = role_info.display_name if role_info else "dia"
+
+        if not session.deal_confirmed:
+            return "Belum ada deal yang dikonfirmasi, Mas. Nego dulu, lalu /deal, baru /mulai."
+
+        # Aktifkan sesi provider (tidak akan auto-berakhir, hanya /batal yang mengakhiri)
+        session.active = True
+        session.mode = SessionMode.PROVIDER_SESSION
+        session.started_at_ts = inp.timestamp
+
+        scene = role_state.scene
+
+        if role_info and role_info.category == "TERAPIS_PIJAT":
+            scene.location = "ruang pijat sederhana"
+            scene.posture = "Mas berbaring tengkurap di kasur pijat"
+            scene.activity = "sesi pijat relaksasi dimulai"
+            scene.ambience = "lampu redup, aroma terapi lembut, suara musik pelan"
+            scene.physical_distance = "sangat dekat"
+            scene.last_touch = "pijatan lembut di punggung"
+
+            return (
+                f"{label_name} merapikan alas dan menyentuh punggung Mas pelan. "
+                "\"Mulai ya Mas… tarik napas pelan, buang pelan. Biar semua tegangannya pelan-pelan hilang.\""
+            )
+
+        # TEMAN_SPESIAL (Davina / Sallsa)
+        scene.location = "kamar hotel yang tenang"
+        scene.posture = "duduk bersebelahan di tepi ranjang"
+        scene.activity = "memulai malam khusus berdua"
+        scene.ambience = "lampu hangat redup, city lights terlihat dari jendela"
+        scene.physical_distance = "sangat dekat"
+        scene.last_touch = "genggam tangan hangat"
+
+        return (
+            f"{label_name} duduk rapat di samping Mas, jemarinya menggenggam tangan Mas hangat. "
+            "\"Malam ini kita pelan-pelan aja ya, Mas… ceritain apa pun yang lagi Mas rasain, "
+            "biar aku yang nemenin sampai hati Mas lebih ringan.\""
+        )
