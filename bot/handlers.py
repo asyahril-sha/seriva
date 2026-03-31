@@ -13,7 +13,7 @@ from telegram import Update
 from telegram.ext import CallbackContext
 
 from seriva.config.constants import list_role_summaries, ROLE_ID_NOVA
-from seriva.core.orchestrator import Orchestrator, OrchestratorInput
+from seriva.core.orchestrator import Orchestrator, OrchestratorInput, OrchestratorOutput
 from seriva.core.state_models import SessionMode
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,8 @@ def start_handler(orchestrator: Orchestrator, admin_id: str):
             "- /pause → pause sesi intens saat ini\n"
             "- /resume → lanjutkan sesi yang di-pause\n"
             "- /batal → akhiri sesi khusus & balik ke chat biasa\n"
-            "- /status → lihat ringkasan perasaan & adegan role aktif"
+            "- /status → lihat ringkasan perasaan & adegan role aktif\n"
+            "- /flashback → minta role cerita ulang momen indah kalian"
         )
 
     return _handler
@@ -88,7 +89,8 @@ def help_handler(orchestrator: Orchestrator, admin_id: str):
             "- /pause → pause sesi intens saat ini (roleplay/provider)\n"
             "- /resume → lanjutkan sesi yang di-pause dari posisi terakhir\n"
             "- /batal atau /end → akhiri sesi khusus dan kembali ke mode normal\n"
-            "- /status → lihat ringkasan perasaan & adegan role aktif"
+            "- /status → lihat ringkasan perasaan & adegan role aktif\n"
+            "- /flashback → minta role cerita ulang satu momen indah/khas dengan Mas"
         )
 
     return _handler
@@ -100,6 +102,8 @@ def help_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def role_list_handler(orchestrator: Orchestrator, admin_id: str):
+    """/role tanpa argumen: tampilkan daftar role."""
+
     @require_admin(admin_id)
     def _handler(update: Update, context: CallbackContext) -> None:
         chat = update.effective_chat
@@ -119,6 +123,8 @@ def role_list_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def set_nova_handler(orchestrator: Orchestrator, admin_id: str):
+    """/nova: paksa role aktif ke Nova."""
+
     @require_admin(admin_id)
     def _handler(update: Update, context: CallbackContext) -> None:
         chat = update.effective_chat
@@ -136,6 +142,8 @@ def set_nova_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def set_role_handler(orchestrator: Orchestrator, admin_id: str):
+    """/role <id>: pindah role aktif."""
+
     @require_admin(admin_id)
     def _handler(update: Update, context: CallbackContext) -> None:
         chat = update.effective_chat
@@ -172,6 +180,8 @@ def set_role_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def end_session_handler(orchestrator: Orchestrator, admin_id: str):
+    """/batal atau /end: akhiri sesi khusus (pakai logika Orchestrator)."""
+
     @require_admin(admin_id)
     def _handler(update: Update, context: CallbackContext) -> None:
         chat = update.effective_chat
@@ -193,6 +203,8 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def status_handler(orchestrator: Orchestrator, admin_id: str):
+    """/status: tampilkan ringkasan emosi & scene role aktif."""
+
     @require_admin(admin_id)
     def _handler(update: Update, context: CallbackContext) -> None:
         chat = update.effective_chat
@@ -241,13 +253,7 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def pause_handler(orchestrator: Orchestrator, admin_id: str):
-    """Pause sesi intens saat ini.
-
-    Secara logika:
-    - Kita simpan flag bahwa sesi user sedang di-pause.
-    - Di sini, kita set global_session_mode ke NORMAL tapi tidak memanggil
-      _end_all_sessions, supaya state emosi & adegan tetap bisa dilanjutkan.
-    """
+    """/pause: pause sesi intens (tanpa reset state)."""
 
     @require_admin(admin_id)
     def _handler(update: Update, context: CallbackContext) -> None:
@@ -257,8 +263,6 @@ def pause_handler(orchestrator: Orchestrator, admin_id: str):
             return
 
         user_state = orchestrator._load_or_init_user_state(str(user.id))  # type: ignore[attr-defined]
-        # Kita anggap pause berarti user pengen berhenti sejenak dari mode intens.
-        # Untuk sekarang, cukup set global_session_mode = NORMAL tapi tidak mereset role_state.session.
         user_state.global_session_mode = SessionMode.NORMAL
         orchestrator._save_all(user_state, orchestrator._load_or_init_world_state())  # type: ignore[attr-defined]
 
@@ -268,11 +272,7 @@ def pause_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def resume_handler(orchestrator: Orchestrator, admin_id: str):
-    """Lanjutkan sesi yang di-pause.
-
-    Di sini kita cukup memberi tahu user bahwa role akan meneruskan
-    adegan/perasaan terakhir yang tersimpan di state.
-    """
+    """/resume: lanjutkan sesi dari suasana terakhir."""
 
     @require_admin(admin_id)
     def _handler(update: Update, context: CallbackContext) -> None:
@@ -282,11 +282,38 @@ def resume_handler(orchestrator: Orchestrator, admin_id: str):
             return
 
         user_state = orchestrator._load_or_init_user_state(str(user.id))  # type: ignore[attr-defined]
-        # Anggap resume = kembali ke mode normal chat dengan role aktif sekarang.
         user_state.global_session_mode = SessionMode.NORMAL
         orchestrator._save_all(user_state, orchestrator._load_or_init_world_state())  # type: ignore[attr-defined]
 
         chat.send_message("▶️ Sesi dilanjutkan! Silakan lanjut ngobrol, role akan melanjutkan dari suasana terakhir.")
+
+    return _handler
+
+
+# ==============================
+# HANDLER /FLASHBACK
+# ==============================
+
+
+def flashback_handler(orchestrator: Orchestrator, admin_id: str):
+    """/flashback: minta role aktif cerita satu momen indah/khas."""
+
+    @require_admin(admin_id)
+    def _handler(update: Update, context: CallbackContext) -> None:
+        chat = update.effective_chat
+        user = update.effective_user
+        if chat is None or user is None:
+            return
+
+        inp = OrchestratorInput(
+            user_id=str(user.id),
+            text="/flashback",
+            timestamp=time.time(),
+            is_command=True,
+            command_name="flashback",
+        )
+        out: OrchestratorOutput = orchestrator.handle_input(inp)
+        chat.send_message(out.reply_text)
 
     return _handler
 
@@ -316,7 +343,7 @@ def message_handler(orchestrator: Orchestrator, admin_id: str):
             command_name=None,
         )
 
-        out = orchestrator.handle_input(inp)
+        out: OrchestratorOutput = orchestrator.handle_input(inp)
         chat.send_message(out.reply_text)
 
     return _handler
