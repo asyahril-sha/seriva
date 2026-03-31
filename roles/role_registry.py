@@ -1,7 +1,6 @@
 """Role registry untuk SERIVA.
 
-Mapping role_id -> instance Role (Nova, Siska, Dietha, Ipeh, Widya, Aghnia,
-Munira, Davina, dll.)
+Mapping role_id -> instance Role (Nova + semua role lain).
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from seriva.config.constants import (
     ROLE_ID_TERAPIS_AGHIA,
     ROLE_ID_TERAPIS_MUNIRA,
     ROLE_ID_TEMAN_SPESIAL_DAVINA,
+    ROLE_ID_TEMAN_SPESIAL_SALLSA,
 )
 from seriva.roles.base_role import Role
 from seriva.roles.nova import NovaRole
@@ -27,6 +27,7 @@ from seriva.roles.teman_lama_widya import TemanLamaWidyaRole
 from seriva.roles.terapis_aghia import TerapisAghiaRole
 from seriva.roles.terapis_munira import TerapisMuniraRole
 from seriva.roles.teman_spesial_davina import TemanSpesialDavinaRole
+from seriva.roles.teman_spesial_sallsa import TemanSpesialSallsaRole
 
 
 # Inisialisasi instance role (singleton sederhana)
@@ -38,6 +39,7 @@ _widya_role = TemanLamaWidyaRole()
 _aghia_role = TerapisAghiaRole()
 _munira_role = TerapisMuniraRole()
 _davina_role = TemanSpesialDavinaRole()
+_sallsa_role = TemanSpesialSallsaRole()
 
 
 ROLE_REGISTRY: Dict[str, Role] = {
@@ -49,7 +51,7 @@ ROLE_REGISTRY: Dict[str, Role] = {
     ROLE_ID_TERAPIS_AGHIA: _aghia_role,
     ROLE_ID_TERAPIS_MUNIRA: _munira_role,
     ROLE_ID_TEMAN_SPESIAL_DAVINA: _davina_role,
-    # Nanti tambahkan role lain di sini (teman_spesial_sallsa, dll.)
+    ROLE_ID_TEMAN_SPESIAL_SALLSA: _sallsa_role,
 }
 
 
