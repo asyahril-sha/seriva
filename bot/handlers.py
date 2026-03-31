@@ -69,7 +69,8 @@ def start_handler(orchestrator: Orchestrator, admin_id: str):
             "- /resume → lanjutkan sesi yang di-pause\n"
             "- /batal → akhiri sesi khusus & balik ke chat biasa\n"
             "- /status → lihat ringkasan perasaan & adegan role aktif\n"
-            "- /flashback → minta role cerita ulang momen indah kalian"
+            "- /flashback → minta role cerita ulang momen indah kalian\n"
+            "- /nego <harga>, /deal, /mulai → alur khusus untuk terapis & teman spesial"
         )
 
     return _handler
@@ -90,7 +91,10 @@ def help_handler(orchestrator: Orchestrator, admin_id: str):
             "- /resume → lanjutkan sesi yang di-pause dari posisi terakhir\n"
             "- /batal atau /end → akhiri sesi khusus dan kembali ke mode normal\n"
             "- /status → lihat ringkasan perasaan & adegan role aktif\n"
-            "- /flashback → minta role cerita ulang satu momen indah/khas dengan Mas"
+            "- /flashback → minta role cerita ulang satu momen indah/khas dengan Mas\n"
+            "- /nego <harga> → nego harga dengan terapis/teman spesial aktif\n"
+            "- /deal → konfirmasi setelah nego\n"
+            "- /mulai → mulai sesi setelah /deal"
         )
 
     return _handler
@@ -196,7 +200,7 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
             is_command=True,
             command_name="batal",
         )
-        out = orchestrator.handle_input(inp)
+        out: OrchestratorOutput = orchestrator.handle_input(inp)
         chat.send_message(out.reply_text)
 
     return _handler
@@ -311,6 +315,87 @@ def flashback_handler(orchestrator: Orchestrator, admin_id: str):
             timestamp=time.time(),
             is_command=True,
             command_name="flashback",
+        )
+        out: OrchestratorOutput = orchestrator.handle_input(inp)
+        chat.send_message(out.reply_text)
+
+    return _handler
+
+
+# ==============================
+# HANDLER PROVIDER: /nego, /deal, /mulai
+# ==============================
+
+
+def nego_handler(orchestrator: Orchestrator, admin_id: str):
+    """/nego <harga>: nego harga untuk role provider."""
+
+    @require_admin(admin_id)
+    def _handler(update: Update, context: CallbackContext) -> None:
+        chat = update.effective_chat
+        user = update.effective_user
+        if chat is None or user is None:
+            return
+
+        text = update.effective_message.text or ""
+        now_ts = time.time()
+
+        inp = OrchestratorInput(
+            user_id=str(user.id),
+            text=text,
+            timestamp=now_ts,
+            is_command=True,
+            command_name="nego",
+        )
+        out: OrchestratorOutput = orchestrator.handle_input(inp)
+        chat.send_message(out.reply_text)
+
+    return _handler
+
+
+def deal_handler(orchestrator: Orchestrator, admin_id: str):
+    """/deal: konfirmasi deal setelah nego."""
+
+    @require_admin(admin_id)
+    def _handler(update: Update, context: CallbackContext) -> None:
+        chat = update.effective_chat
+        user = update.effective_user
+        if chat is None or user is None:
+            return
+
+        now_ts = time.time()
+
+        inp = OrchestratorInput(
+            user_id=str(user.id),
+            text="/deal",
+            timestamp=now_ts,
+            is_command=True,
+            command_name="deal",
+        )
+        out: OrchestratorOutput = orchestrator.handle_input(inp)
+        chat.send_message(out.reply_text)
+
+    return _handler
+
+
+def mulai_handler(orchestrator: Orchestrator, admin_id: str):
+    """/mulai: mulai sesi provider setelah deal."""
+
+    @require_admin(admin_id)
+    def _handler(update: Update, context: CallbackContext) -> None:
+        chat = update.effective_chat
+        user = update.effective_user
+        if chat is None or user is None:
+            return
+
+        now_ts = time.time()
+
+        inp = OrchestratorInput(
+            user_id=str(user.id),
+            text="/mulai",
+            timestamp=now_ts,
+            is_command=True,
+            command_name="mulai",
         )
         out: OrchestratorOutput = orchestrator.handle_input(inp)
         chat.send_message(out.reply_text)
