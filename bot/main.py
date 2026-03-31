@@ -26,6 +26,9 @@ from bot.handlers import (
     set_role_handler,
     end_session_handler,
     status_handler,
+    pause_handler,
+    resume_handler,
+    flashback_handler,
     message_handler,
 )
 
@@ -63,16 +66,27 @@ def main() -> None:
     # Command handlers
     app.add_handler(CommandHandler("start", start_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("help", help_handler(orchestrator, admin_id)))
+
+    # /role tanpa argumen → list role
     app.add_handler(CommandHandler("role", role_list_handler(orchestrator, admin_id), filters=~filters.Regex(r"^/role\\s+")))
-    # /role with args ditangani di handler yang sama atau terpisah
-    app.add_handler(CommandHandler("role", set_role_handler(orchestrator, admin_id)))
+    # /role <id> → switch role
+    app.add_handler(CommandHandler("role", set_role_handler(orchestrator, admin_id), filters=filters.Regex(r"^/role\\s+")))
+
     app.add_handler(CommandHandler("nova", set_nova_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("batal", end_session_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("end", end_session_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("status", status_handler(orchestrator, admin_id)))
+    app.add_handler(CommandHandler("pause", pause_handler(orchestrator, admin_id)))
+    app.add_handler(CommandHandler("resume", resume_handler(orchestrator, admin_id)))
+    app.add_handler(CommandHandler("flashback", flashback_handler(orchestrator, admin_id)))
 
     # Message handler (teks biasa)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler(orchestrator, admin_id)))
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            message_handler(orchestrator, admin_id),
+        )
+    )
 
     logger.info("SERIVA Telegram bot starting (polling mode)...")
     app.run_polling()
