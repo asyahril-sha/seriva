@@ -29,6 +29,9 @@ from bot.handlers import (
     pause_handler,
     resume_handler,
     flashback_handler,
+    nego_handler,
+    deal_handler,
+    mulai_handler,
     message_handler,
 )
 
@@ -68,9 +71,21 @@ def main() -> None:
     app.add_handler(CommandHandler("help", help_handler(orchestrator, admin_id)))
 
     # /role tanpa argumen → list role
-    app.add_handler(CommandHandler("role", role_list_handler(orchestrator, admin_id), filters=~filters.Regex(r"^/role\\s+")))
+    app.add_handler(
+        CommandHandler(
+            "role",
+            role_list_handler(orchestrator, admin_id),
+            filters=~filters.Regex(r"^/role\\s+"),
+        )
+    )
     # /role <id> → switch role
-    app.add_handler(CommandHandler("role", set_role_handler(orchestrator, admin_id), filters=filters.Regex(r"^/role\\s+")))
+    app.add_handler(
+        CommandHandler(
+            "role",
+            set_role_handler(orchestrator, admin_id),
+            filters=filters.Regex(r"^/role\\s+"),
+        )
+    )
 
     app.add_handler(CommandHandler("nova", set_nova_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("batal", end_session_handler(orchestrator, admin_id)))
@@ -79,6 +94,11 @@ def main() -> None:
     app.add_handler(CommandHandler("pause", pause_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("resume", resume_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("flashback", flashback_handler(orchestrator, admin_id)))
+
+    # Provider commands
+    app.add_handler(CommandHandler("nego", nego_handler(orchestrator, admin_id)))
+    app.add_handler(CommandHandler("deal", deal_handler(orchestrator, admin_id)))
+    app.add_handler(CommandHandler("mulai", mulai_handler(orchestrator, admin_id)))
 
     # Message handler (teks biasa)
     app.add_handler(
