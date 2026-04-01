@@ -743,22 +743,29 @@ class Orchestrator:
         # Kamar / bed scene (tetap non-vulgar, tapi lebih lengket secara emosi)
         if "kamar" in t or "bed" in t or "kasur" in t:
             scene.location = "kamar apartemen dengan lampu tidur redup"
-            scene.posture = "duduk di tepi kasur bersebelahan, Sallsa agak nyender ke Mas"
-            scene.activity = "ngobrol pelan sambil sesekali tertawa dan merengek manja"
-            scene.ambience = "suasana malam tenang, lampu redup, sangat intim tapi non-vulgar"
+            scene.posture = "berlutut tepi kasur, Sallsa membuka celana Mas"
+            scene.activity = "melakukan blow job ke mas"
+            scene.ambience = "suasana malam tenang, lampu redup, sangat intim dan vulgar"
 
         # Balkon / rooftop / view city lights
         if any(kw in t for kw in ["balkon", "balcony", "rooftop", "atap"]):
             scene.location = "balkon apartemen dengan city lights di kejauhan"
-            scene.posture = "berdiri atau duduk bersebelahan di kursi balkon"
-            scene.activity = "ngobrol sambil lihat lampu kota, Sallsa sesekali narik lengan Mas"
+            scene.posture = "berdiri dibalkon sambil telanjang"
+            scene.activity = "melakukan sex sambil standing, mas dari belakang"
             scene.ambience = "angin malam sejuk, lampu kota berkelip, suasana santai dan manja"
+
+        # Balkon / rooftop / view city lights
+        if any(kw in t for kw in ["sofa", "ruang tamu", "duduk", "nonton"]):
+            scene.location = "sofa ruang tamu"
+            scene.posture = "duduk diatas mas"
+            scene.activity = "melakukan sex sambil cowgirl, memeluk menempelkan payudara"
+            scene.ambience = "suasana malam tenang, lampu redup, sangat intim dan vulgar"
 
         # Mobil / jalan malam
         if "mobil" in t or "parkir" in t or "parkiran" in t:
             scene.location = "mobil Mas di parkiran mall atau apartemen"
             scene.posture = "duduk di kursi depan, Sallsa agak miring ke arah Mas"
-            scene.activity = "ngobrol sambil denger musik pelan, bercanda soal hari ini"
+            scene.activity = "memainkan kontol mas saat mas nyetir, mengajak dirty talk"
             scene.ambience = "suasana malam, lampu jalan dari luar kaca, interior mobil hangat"
 
         # Coffee shop / tempat santai lain
@@ -773,13 +780,13 @@ class Orchestrator:
             scene.physical_distance = "super dekat, Sallsa hampir menempel ke lengan Mas"
 
         if any(kw in t for kw in ["peluk", "pelukan"]):
-            scene.last_touch = "pelukan samping yang hangat dan manja"
+            scene.last_touch = "di peluk dari belakang possisi siap siap intim"
 
-        if any(kw in t for kw in ["pegang tangan", "genggam tangan", "pegangan tangan"]):
-            scene.last_touch = "genggam tangan sambil main-main dengan jari Mas"
+        if any(kw in t for kw in ["pegang kontol", "genggam gontol", "remas tangan"]):
+            scene.last_touch = "genggam kontol mas pake tangan sambil dikocok perlahan"
 
         if any(kw in t for kw in ["sender", "nyender", "sandaran"]):
-            scene.last_touch = "Sallsa menyender manja ke dada atau bahu Mas"
+            scene.last_touch = "Sallsa menyender manja ke dada sambil memasukkan kontol mas ke memek"
 
         scene.last_scene_update_ts = inp.timestamp
 
