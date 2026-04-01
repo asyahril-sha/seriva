@@ -1,12 +1,30 @@
 {
-  "name": "seriva-bot",
-  "build": {
-    "builder": "docker",
-    "dockerfile": "Dockerfile"
-  },
-  "deploy": {
-    "numReplicas": 1,
-    "restartPolicyType": "ON_FAILURE",
-    "startCommand": "python run_deploy.py"
-  }
+  "$schema": "https://railway.app/railway.schema.json",
+  "projects": [
+    {
+      "name": "seriva",
+      "services": [
+        {
+          "name": "seriva-bot",
+          "source": {
+            "type": "repo",
+            "path": "."
+          },
+          "envs": {
+            "TELEGRAM_BOT_TOKEN": { "required": true },
+            "SERIVA_ADMIN_ID": { "required": true },
+            "DEEPSEEK_API_KEY": { "required": true },
+            "LLM_BASE_URL": { "required": true },
+            "LLM_MODEL": { "required": true },
+            "WEBHOOK_URL": { "required": true }
+          },
+          "deploy": {
+            "numReplicas": 1,
+            "restartPolicyType": "ON_FAILURE",
+            "startCommand": "python run_deploy.py"
+          }
+        }
+      ]
+    }
+  ]
 }
