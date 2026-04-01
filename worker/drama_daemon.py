@@ -26,10 +26,10 @@ import time
 from dataclasses import dataclass
 from typing import Iterable
 
-from seriva.core.emotion_engine import EmotionEngine
-from seriva.core.state_models import UserState, WorldState
-from seriva.core.world_engine import WorldEngine
-from seriva.core.orchestrator import UserStateStore, WorldStateStore
+from core.emotion_engine import EmotionEngine
+from core.state_models import UserState, WorldState
+from core.world_engine import WorldEngine
+from core.orchestrator import UserStateStore, WorldStateStore
 
 
 logger = logging.getLogger(__name__)
