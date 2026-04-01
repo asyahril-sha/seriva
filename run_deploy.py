@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SERIVA – Deployment Runner for Railway.
+"""SERIVA – Deployment Runner for Railway (Webhook Mode).
 
 Menangani langkah startup sebelum menjalankan bot webhook:
 - Cek environment variables penting.
@@ -7,7 +7,9 @@ Menangani langkah startup sebelum menjalankan bot webhook:
 - Log status.
 - Menjalankan bot.webhook_main.main().
 
-Dipakai sebagai start command di Railway:
+Mendukung penggunaan DEEPSEEK_API_KEY sebagai alias LLM_API_KEY.
+
+Start command di Railway:
     python run_deploy.py
 """
 
@@ -26,13 +28,31 @@ logging.basicConfig(
 logger = logging.getLogger("SERIVA-DEPLOY")
 
 
+def _alias_deepseek_to_llm() -> None:
+    """Jika LLM_API_KEY belum di-set tapi DEEPSEEK_API_KEY ada, pakai itu.
+
+    Ini memungkinkan kamu hanya mengisi DEEPSEEK_API_KEY di Railway,
+    sementara kode SERIVA tetap memakai nama LLM_API_KEY.
+    """
+
+    llm_key = os.getenv("LLM_API_KEY")
+    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+
+    if not llm_key and deepseek_key:
+        os.environ["LLM_API_KEY"] = deepseek_key
+        logger.info("LLM_API_KEY tidak ada, menggunakan DEEPSEEK_API_KEY.")
+
+
 def check_env() -> bool:
     """Cek environment variables yang wajib ada."""
+
+    # Alias DEEPSEEK_API_KEY -> LLM_API_KEY bila perlu
+    _alias_deepseek_to_llm()
 
     required = [
         "TELEGRAM_BOT_TOKEN",
         "SERIVA_ADMIN_ID",
-        "LLM_API_KEY",
+        "LLM_API_KEY",      # bisa terisi dari DEEPSEEK_API_KEY
         "LLM_BASE_URL",
         "LLM_MODEL",
         "WEBHOOK_URL",
@@ -46,6 +66,10 @@ def check_env() -> bool:
     logger.info("TELEGRAM_BOT_TOKEN: %s...", os.getenv("TELEGRAM_BOT_TOKEN")[:10])
     logger.info("SERIVA_ADMIN_ID: %s", os.getenv("SERIVA_ADMIN_ID"))
     logger.info("WEBHOOK_URL: %s", os.getenv("WEBHOOK_URL"))
+
+    if os.getenv("DEEPSEEK_API_KEY"):
+        logger.info("DEEPSEEK_API_KEY is set (used as LLM_API_KEY if LLM_API_KEY was empty).")
+
     return True
 
 
