@@ -74,10 +74,7 @@ KETENTUAN PENTING:
 
 
 def build_teman_kantor_ipeh_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Ipeh.
-
-    Teks Mas akan ditempel di belakang prefix ini.
-    """
+    """Prefix untuk user prompt Ipeh."""
 
     return (
         "Mas adalah teman kantor yang paling dekat dengan Ipeh, "
