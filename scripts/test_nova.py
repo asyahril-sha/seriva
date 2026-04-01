@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import time
 
-from seriva.core.llm_client import LLMClient
-from seriva.core.orchestrator import Orchestrator, OrchestratorInput
-from seriva.storage.inmemory_store import (
+from core.llm_client import LLMClient
+from core.orchestrator import Orchestrator, OrchestratorInput
+from storage.inmemory_store import (
     InMemoryUserStateStore,
     InMemoryWorldStateStore,
 )
