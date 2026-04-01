@@ -44,7 +44,7 @@ class LLMConfig:
     model: str     # misal: "deepseek-chat"
 
     timeout_seconds: int = 30
-    default_temperature: float = 0.8
+    default_temperature: float = 0.85
     default_max_tokens: int = 512
 
 
