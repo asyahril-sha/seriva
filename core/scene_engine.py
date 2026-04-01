@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from seriva.core.state_models import SceneState, TimeOfDay
+from core.state_models import SceneState, TimeOfDay
 
 
 @dataclass
