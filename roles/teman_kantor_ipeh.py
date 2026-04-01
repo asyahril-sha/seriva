@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from config.constants import ROLE_ID_TEMAN_KANTOR_IPEH
 from core.state_models import RoleState, UserState
-from sroles.base_role import BaseRole
+from roles.base_role import BaseRole
 from prompts.teman_kantor_ipeh_prompt import (
     build_teman_kantor_ipeh_system_prompt,
     build_teman_kantor_ipeh_user_prompt_prefix,
