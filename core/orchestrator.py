@@ -199,13 +199,13 @@ class Orchestrator:
         # 9) Update waktu interaksi terakhir
         user_state.last_interaction_ts = inp.timestamp
 
-        # 10) Auto-milestone: first_confession untuk Nova
+        # 10) Perbarui ringkasan percakapan terakhir (per role)
+        self._update_conversation_summary(user_state, role_state, inp, reply_text)
+
+        # 11) Auto-milestone: first_confession untuk Nova
         self._maybe_record_first_confession(user_state, role_state, inp)
 
-        # 11) Simpan state
-        self._save_all(user_state, world_state)
-
-        # 12) Simpan state
+        # 12) Simpan state (cukup sekali saja)
         self._save_all(user_state, world_state)
 
         return OrchestratorOutput(
