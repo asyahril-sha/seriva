@@ -262,6 +262,27 @@ class Orchestrator:
     # INTERNAL HELPERS: SIMPLE INTENT PARSING
     # --------------------------------------------------
 
+    def _ensure_baseline_scene(self, role_state: RoleState) -> None:
+      """Pastikan scene punya nilai dasar yang konsisten.
+
+      Dipakai semua role kecuali ada override khusus.
+      Tidak memaksa pindah lokasi/posture kalau sudah ada nilai.
+      """
+      scene = role_state.scene
+
+      if not scene.location:
+          scene.location = "ruang yang tenang"
+      if not scene.posture:
+          scene.posture = "duduk santai bersebelahan"
+      if not scene.activity:
+          scene.activity = "ngobrol berdua"
+      if not scene.ambience:
+          scene.ambience = "suasana hangat, lampu tidak terlalu terang"
+      if scene.time_of_day is None:
+          scene.time_of_day = TimeOfDay.NIGHT
+      if not scene.physical_distance:
+          scene.physical_distance = "sebelahan"
+
     def _infer_interaction_context(self, text: str) -> InteractionContext:
         """Heuristik sangat sederhana untuk menebak jenis interaksi."""
 
@@ -322,6 +343,8 @@ class Orchestrator:
             self._update_scene_for_nova(role_state, inp)
         elif role_state.role_id == ROLE_ID_TEMAN_KANTOR_IPEH:
             self._update_scene_for_ipeh(role_state, inp)
+        elif role_state.role_id == ROLE_ID_IPAR_TASHA:
+            self._update_scene_for_tasha(role_state, inp)
         else:
             # Default: kalau belum ada nilai, isi baseline halus
             scene = role_state.scene
@@ -361,9 +384,63 @@ class Orchestrator:
             scene.physical_distance = "sebelahan"
 
         t = inp.text.lower()
-        if any(word in t for word in ["peluk", "pelukan"]):
+        if any(word in t for word in ["peluk", "pelukan", "pelukan sambil tidur", "dipeluk dari belakang"]):
             self.scene_engine.gentle_hug(scene)
-        elif any(word in t for word in ["sender", "nyender"]):
+        elif any(word in t for word in ["sender", "nyender", "duduk dipangkuan"]):
+            self.scene_engine.lean_on_shoulder(scene)
+
+        scene.last_scene_update_ts = inp.timestamp
+      
+    # --------------------------------------------------
+    # INTERNAL HELPERS: SCENE UNTUK TASHA
+    # --------------------------------------------------
+
+    def _update_scene_for_tasha(self, role_state: RoleState, inp: OrchestratorInput) -> None:
+        """Update SceneState Tasha secara sangat sederhana."""
+
+        scene = role_state.scene
+
+        if not scene.location:
+            scene.location = "kamar"
+        if not scene.posture:
+            scene.posture = "duduk santai"
+        if not scene.activity:
+            scene.activity = "ngobrol berdua"
+        if not scene.ambience:
+            scene.ambience = "suasana tenang, lampu tidak terlalu terang"
+        if scene.time_of_day is None:
+            scene.time_of_day = TimeOfDay.NIGHT
+        if not scene.physical_distance:
+            scene.physical_distance = "sebelahan"
+
+        # User merasa sumpek / jenuh di kantor
+        if any(kw in t for kw in ["sumpek", "jenuh", "bosen", "bosan"]):
+            scene.ambience = "kamar terasa sumpek dan melelahkan"
+
+        # Mention kafe / kerja di luar kantor
+        if "kafe" in t or "cafe" in t or "café" in t:
+            scene.location = "kafe dekat kost"
+            scene.posture = "duduk bersebelahan di sofa rumah"
+            scene.activity = "ngerjain presentasi bareng sambil ngopi"
+            scene.ambience = "lampu temaram, suasana cozy dengan musik pelan"
+
+        # Mention mobil
+        if "mobil" in t:
+            scene.location = "mobil Mas di parkiran apartemen"
+            scene.posture = "duduk di kursi depan, Tasha di samping Mas"
+            scene.activity = "ngobrol santai sambil siap berangkat"
+            scene.ambience = "suasana malam, lampu jalan dari luar kaca"
+
+        # Jarak fisik & sentuhan halus
+        if any(kw in t for kw in ["mepet", "deket", "dekat", "rapat"]):
+            scene.physical_distance = "sangat dekat"
+        if any(kw in t for kw in ["pegang tangan", "genggam tangan", "pegangan tangan", "duduk dipangkuan mas"]):
+            scene.last_touch = "genggam tangan hangat"
+
+        t = inp.text.lower()
+        if any(word in t for word in ["peluk", "pelukan", "pelukan sambil tidur", "dipeluk dari belakang"]):
+            self.scene_engine.gentle_hug(scene)
+        elif any(word in t for word in ["sender", "nyender", "duduk dipangkuan"]):
             self.scene_engine.lean_on_shoulder(scene)
 
         scene.last_scene_update_ts = inp.timestamp
@@ -417,7 +494,7 @@ class Orchestrator:
         # Jarak fisik & sentuhan halus
         if any(kw in t for kw in ["mepet", "deket", "dekat", "rapat"]):
             scene.physical_distance = "sangat dekat"
-        if any(kw in t for kw in ["pegang tangan", "genggam tangan", "pegangan tangan"]):
+        if any(kw in t for kw in ["pegang tangan", "genggam tangan", "pegangan tangan", "duduk dipangkuan mas"]):
             scene.last_touch = "genggam tangan hangat"
 
         scene.last_scene_update_ts = inp.timestamp
