@@ -29,10 +29,13 @@ class NovaRole(BaseRole):
         relationship = role_state.relationship
         scene = role_state.scene
 
+        conversation_summary = role_state.last_conversation_summary
+
         system_prompt = build_nova_system_prompt(
             emotions=emotions,
             relationship=relationship,
             scene=scene,
+            conversation_summary=conversation_summary,
         )
 
         prefix = build_nova_user_prompt_prefix()
