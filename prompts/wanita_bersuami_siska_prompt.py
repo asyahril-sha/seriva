@@ -75,10 +75,7 @@ KETENTUAN PENTING:
 
 
 def build_siska_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Siska.
-
-    Teks Mas akan ditempel di belakang prefix ini.
-    """
+    """Prefix untuk user prompt Siska."""
 
     return (
         "Mas adalah orang yang membuat Siska merasa nyaman dan dimengerti, "
