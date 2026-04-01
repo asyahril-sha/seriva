@@ -31,6 +31,7 @@ from config.constants import (
     ROLE_ID_TERAPIS_MUNIRA,
     ROLE_ID_TEMAN_SPESIAL_DAVINA,
     ROLE_ID_TEMAN_SPESIAL_SALLSA,
+    ROLE_ID_IPAR_TASHA,
     ROLES,
 )
 from core.emotion_engine import EmotionEngine, InteractionContext
