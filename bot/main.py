@@ -25,13 +25,13 @@ from telegram.ext import (
     filters,
 )
 
-from seriva.core.llm_client import LLMClient, LLMConfig
-from seriva.core.orchestrator import Orchestrator
-from seriva.storage.inmemory_store import (
+from core.llm_client import LLMClient, LLMConfig
+from core.orchestrator import Orchestrator
+from storage.inmemory_store import (
     InMemoryUserStateStore,
     InMemoryWorldStateStore,
 )
-from seriva.memory.milestones import MilestoneStore
+from memory.milestones import MilestoneStore
 from bot.handlers import (
     start_handler,
     help_handler,
@@ -107,7 +107,7 @@ def main() -> None:
         CommandHandler(
             "role",
             role_list_handler(orchestrator, admin_id),
-            filters=~filters.Regex(r"^/role\\s+"),
+            filters=~filters.Regex(r"^/role\s+"),
         )
     )
     # /role <id> → switch role
@@ -115,7 +115,7 @@ def main() -> None:
         CommandHandler(
             "role",
             set_role_handler(orchestrator, admin_id),
-            filters=filters.Regex(r"^/role\\s+"),
+            filters=filters.Regex(r"^/role\s+"),
         )
     )
 
