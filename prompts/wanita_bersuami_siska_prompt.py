@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from seriva.config.constants import DEFAULT_USER_CALL
-from seriva.core.state_models import EmotionState, RelationshipState, SceneState
+from config.constants import DEFAULT_USER_CALL
+from core.state_models import EmotionState, RelationshipState, SceneState
 
 
 def build_siska_system_prompt(
