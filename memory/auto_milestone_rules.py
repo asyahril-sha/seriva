@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from seriva.config.constants import (
+from config.constants import (
     ROLE_ID_NOVA,
     ROLE_ID_IPAR_TASHA,
     ROLE_ID_TEMAN_KANTOR_IPEH,
@@ -37,9 +37,9 @@ from seriva.config.constants import (
     ROLE_ID_TEMAN_SPESIAL_DAVINA,
     ROLE_ID_TEMAN_SPESIAL_SALLSA,
 )
-from seriva.core.orchestrator import OrchestratorInput
-from seriva.core.state_models import RoleState, UserState
-from seriva.memory.milestones import MilestoneStore
+from core.orchestrator import OrchestratorInput
+from core.state_models import RoleState, UserState
+from memory.milestones import MilestoneStore
 
 
 # ==============================
