@@ -28,14 +28,14 @@ from telegram.ext import (
     filters,
 )
 
-from seriva.core.llm_client import LLMClient, LLMConfig
-from seriva.core.orchestrator import Orchestrator
-from seriva.storage.inmemory_store import (
+from .core.llm_client import LLMClient, LLMConfig
+from .core.orchestrator import Orchestrator
+from .storage.inmemory_store import (
     InMemoryUserStateStore,
     InMemoryWorldStateStore,
 )
-from seriva.memory.milestones import MilestoneStore
-from bot.handlers import (
+from .memory.milestones import MilestoneStore
+from .bot.handlers import (
     start_handler,
     help_handler,
     role_list_handler,
