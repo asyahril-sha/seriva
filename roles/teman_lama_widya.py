@@ -37,7 +37,7 @@ class TemanLamaWidyaRole(BaseRole):
         default_profile = (
             "Nama Mas: Adhie\n"
             "Pekerjaan: backend developer\n"
-            "Kota tempat tinggal: Makassar\n"
+            "Kota tempat tinggal: Jakarta\n"
         )
 
         user_profile_summary = getattr(
