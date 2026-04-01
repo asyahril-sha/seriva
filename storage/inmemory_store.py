@@ -11,8 +11,8 @@ from __future__ import annotations
 from threading import RLock
 from typing import Dict, Optional
 
-from seriva.core.state_models import UserState, WorldState
-from seriva.core.orchestrator import UserStateStore, WorldStateStore
+from core.state_models import UserState, WorldState
+from core.orchestrator import UserStateStore, WorldStateStore
 
 
 class InMemoryUserStateStore(UserStateStore):
