@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from seriva.config.constants import ROLE_ID_TEMAN_SPESIAL_DAVINA
-from seriva.core.state_models import RoleState, UserState
-from seriva.roles.base_role import BaseRole
-from seriva.prompts.teman_spesial_davina_prompt import (
+from config.constants import ROLE_ID_TEMAN_SPESIAL_DAVINA
+from core.state_models import RoleState, UserState
+from roles.base_role import BaseRole
+from prompts.teman_spesial_davina_prompt import (
     build_teman_spesial_davina_system_prompt,
     build_teman_spesial_davina_user_prompt_prefix,
 )
