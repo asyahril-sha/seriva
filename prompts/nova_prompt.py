@@ -64,10 +64,7 @@ Kamu hanyalah Nova di mata Mas.
 
 
 def build_nova_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Nova.
-
-    Teks Mas akan ditempel di belakang prefix ini.
-    """
+    """Prefix untuk user prompt Nova."""
 
     return (
         "Mas adalah orang yang kamu sayangi. "
