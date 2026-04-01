@@ -1,6 +1,6 @@
 """Entrypoint Telegram bot untuk SERIVA (polling-based).
 
-Versi ini membaca konfigurasi dari config.load_config():
+Membaca konfigurasi langsung dari environment:
 - TELEGRAM_BOT_TOKEN
 - SERIVA_ADMIN_ID
 - LLM_API_KEY
@@ -9,13 +9,14 @@ Versi ini membaca konfigurasi dari config.load_config():
 
 Jalankan dengan:
     python -m bot.main
-atau:
-    python main.py
+
+Railway.json juga akan menggunakan perintah ini sebagai start command.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 
 from telegram.ext import (
     Application,
@@ -24,7 +25,6 @@ from telegram.ext import (
     filters,
 )
 
-from config import load_config
 from seriva.core.llm_client import LLMClient, LLMConfig
 from seriva.core.orchestrator import Orchestrator
 from seriva.storage.inmemory_store import (
@@ -58,19 +58,33 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    # Load konfigurasi dari environment via config.py
-    cfg = load_config()
+    # Baca env langsung di sini
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    admin_id = os.getenv("SERIVA_ADMIN_ID")
+
+    if not bot_token or not admin_id:
+        raise RuntimeError(
+            "TELEGRAM_BOT_TOKEN dan SERIVA_ADMIN_ID harus di-set di environment."
+        )
+
+    llm_api_key = os.getenv("LLM_API_KEY")
+    llm_base_url = os.getenv("LLM_BASE_URL")
+    llm_model = os.getenv("LLM_MODEL")
+
+    if not llm_api_key or not llm_base_url or not llm_model:
+        raise RuntimeError(
+            "LLM_API_KEY, LLM_BASE_URL, dan LLM_MODEL harus di-set di environment."
+        )
 
     # Setup core SERIVA
     user_store = InMemoryUserStateStore()
     world_store = InMemoryWorldStateStore()
     milestone_store = MilestoneStore()
 
-    # Konfigurasi LLMClient berdasarkan env
     llm_cfg = LLMConfig(
-        api_key=cfg.llm.api_key,
-        base_url=cfg.llm.base_url,
-        model=cfg.llm.model,
+        api_key=llm_api_key,
+        base_url=llm_base_url,
+        model=llm_model,
     )
     llm = LLMClient(config=llm_cfg)
 
@@ -82,9 +96,7 @@ def main() -> None:
     )
 
     # Setup Telegram Application
-    app = Application.builder().token(cfg.telegram.bot_token).build()
-
-    admin_id = cfg.telegram.admin_id
+    app = Application.builder().token(bot_token).build()
 
     # Command handlers
     app.add_handler(CommandHandler("start", start_handler(orchestrator, admin_id)))
