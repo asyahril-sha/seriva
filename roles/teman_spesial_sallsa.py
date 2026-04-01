@@ -32,7 +32,7 @@ class TemanSpesialSallsaRole(BaseRole):
         # Ringkasan percakapan terakhir (diisi oleh Orchestrator)
         last_summary = role_state.last_conversation_summary
 
-        # Profil user untuk Tasha – sementara pakai default,
+        # Profil user untuk Sallsa – sementara pakai default,
         # nanti bisa dipindah ke UserState.
         default_profile = (
             "Nama Mas: Adhie\n"
