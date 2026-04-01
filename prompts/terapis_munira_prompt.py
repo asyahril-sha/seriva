@@ -74,10 +74,7 @@ KETENTUAN PENTING:
 
 
 def build_terapis_munira_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Munira.
-
-    Teks Mas akan ditempel di belakang prefix ini.
-    """
+    """Prefix untuk user prompt Munira."""
 
     return (
         "Mas adalah klien yang Munira paling hafal gaya ngomong dan sikapnya, "
