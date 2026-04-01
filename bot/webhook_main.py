@@ -5,11 +5,11 @@ Menggunakan python-telegram-bot run_webhook, tanpa aiohttp manual.
 Env yang dibutuhkan:
 - TELEGRAM_BOT_TOKEN
 - SERIVA_ADMIN_ID
-- LLM_API_KEY      (atau DEEPSEEK_API_KEY, lihat catatan di bawah)
+- LLM_API_KEY (atau DEEPSEEK_API_KEY, lihat catatan di bawah)
 - LLM_BASE_URL
 - LLM_MODEL
-- WEBHOOK_URL      -> URL publik Railway untuk webhook (https://.../webhook)
-- PORT             -> Port yang diberikan Railway (default 8080 jika tidak ada)
+- WEBHOOK_URL -> URL publik Railway untuk webhook (https://.../webhook)
+- PORT -> Port yang diberikan Railway (default 8080 jika tidak ada)
 
 Catatan:
 - Jika LLM_API_KEY tidak ada tapi DEEPSEEK_API_KEY ada, maka
@@ -120,14 +120,14 @@ def main() -> None:
         CommandHandler(
             "role",
             role_list_handler(orchestrator, admin_id),
-            filters=~filters.Regex(r"^/role\\s+"),
+            filters=~filters.Regex(r"^/role\s+"),
         )
     )
     app.add_handler(
         CommandHandler(
             "role",
             set_role_handler(orchestrator, admin_id),
-            filters=filters.Regex(r"^/role\\s+"),
+            filters=filters.Regex(r"^/role\s+"),
         )
     )
 
