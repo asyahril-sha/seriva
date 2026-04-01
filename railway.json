@@ -1,0 +1,12 @@
+{
+  "name": "seriva-bot",
+  "build": {
+    "builder": "docker",
+    "dockerfile": "Dockerfile"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "restartPolicyType": "ON_FAILURE",
+    "startCommand": "python run_deploy.py"
+  }
+}
