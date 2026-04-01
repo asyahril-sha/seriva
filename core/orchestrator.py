@@ -435,29 +435,52 @@ class Orchestrator:
     ) -> None:
         """Perbarui ringkasan singkat percakapan terakhir untuk role ini.
 
-        Versi sederhana: simpan 1–2 kalimat yang menjelaskan:
-        - Apa yang baru Mas sampaikan
-        - Bagaimana role merespon (garis besar)
+        Format semi-terstruktur:
 
-        Nanti bisa di-upgrade pakai LLM khusus kalau mau.
+        [FAKTA_USER]
+        - Nama: ...
+        - Pekerjaan: ...
+        - Kota: ...
+
+        [INTENSI_TERAKHIR_USER]
+        - Isi: ...
+        - Jenis: ...
+
+        [RESPON_ROLE_TERAKHIR]
+        - Garis_besar: ...
         """
 
         user_text = inp.text.strip()
         reply = reply_text.strip()
 
-        # Potong teks supaya tidak terlalu panjang (misal 200–300 karakter)
-        def _shorten(s: str, max_len: int = 240) -> str:
-            if len(s) <= max_len:
-                return s
-            return s[: max_len - 3] + "..."
+        # 1) Ambil fakta lama (kalau ada)
+        old_summary = role_state.last_conversation_summary or ""
+        old_facts = _parse_existing_facts(old_summary)
 
+        # 2) Cari fakta baru di teks user terbaru
+        new_facts = _infer_new_facts_from_text(user_text)
+
+        # 3) Gabungkan
+        merged_facts = _merge_facts(old_facts, new_facts)
+
+        # 4) Klasifikasi jenis intensi
+        intent_type = _classify_intent_type(user_text)
+
+        # 5) Susun summary baru
         summary = (
-            "Percakapan terakhir antara Mas dan role ini: "
-            "Mas berkata: '" + _shorten(user_text, 140) + "'. "
-            "Role merespon garis besar: '" + _shorten(reply, 140) + "'."
+            "[FAKTA_USER]\n"
+            f"- Nama: {merged_facts['nama'] or '-'}\n"
+            f"- Pekerjaan: {merged_facts['pekerjaan'] or '-'}\n"
+            f"- Kota: {merged_facts['kota'] or '-'}\n\n"
+            "[INTENSI_TERAKHIR_USER]\n"
+            f"- Isi: {_shorten_for_summary(user_text, 220)}\n"
+            f"- Jenis: {intent_type}\n\n"
+            "[RESPON_ROLE_TERAKHIR]\n"
+            f"- Garis_besar: {_shorten_for_summary(reply, 220)}\n"
         )
 
         role_state.last_conversation_summary = summary
+
     # --------------------------------------------------
     # AUTO-MILESTONE UNTUK NOVA
     # --------------------------------------------------
@@ -506,3 +529,108 @@ class Orchestrator:
             label="first_confession",
             description=description,
         )
+
+
+# ==============================
+# HELPER: FAKTA USER & SUMMARY OBROLAN (MODULE-LEVEL)
+# ==============================
+
+
+def _parse_existing_facts(summary: str) -> dict:
+    """Ekstrak fakta user sederhana dari summary lama (kalau ada).
+
+    Mengharapkan format:
+    [FAKTA_USER]
+    - Nama: ...
+    - Pekerjaan: ...
+    - Kota: ...
+    """
+
+    facts = {"nama": None, "pekerjaan": None, "kota": None}
+    if "[FAKTA_USER]" not in summary:
+        return facts
+
+    for line in summary.splitlines():
+        line = line.strip()
+        if line.startswith("- Nama:"):
+            facts["nama"] = line.split(":", 1)[1].strip() or None
+        elif line.startswith("- Pekerjaan:"):
+            facts["pekerjaan"] = line.split(":", 1)[1].strip() or None
+        elif line.startswith("- Kota:"):
+            facts["kota"] = line.split(":", 1)[1].strip() or None
+    return facts
+
+
+def _infer_new_facts_from_text(user_text: str) -> dict:
+    """Heuristik sederhana cari nama, pekerjaan, kota dari teks user terbaru.
+
+    Contoh yang didukung:
+    - "Halo, namaku Adi. Aku kerja sebagai backend developer di Makassar."
+    """
+
+    t = user_text.strip()
+    lowered = t.lower()
+
+    facts = {"nama": None, "pekerjaan": None, "kota": None}
+
+    # Nama (contoh: "namaku Adi" / "nama saya Adi")
+    for marker in ["namaku", "nama saya", "nama gue", "nama ku"]:
+        if marker in lowered:
+            try:
+                after = t[lowered.index(marker) + len(marker) :].strip()
+                candidate = after.split()[0].strip(",.!?\n")
+                if candidate:
+                    facts["nama"] = candidate
+            except Exception:
+                pass
+
+    # Pekerjaan (contoh: "aku kerja sebagai backend developer di ...")
+    if "kerja sebagai" in lowered:
+        try:
+            after = t[lowered.index("kerja sebagai") + len("kerja sebagai") :].strip()
+            if " di " in after:
+                pekerjaan = after.split(" di ", 1)[0].strip(",.!?\n")
+            else:
+                pekerjaan = after.split(".", 1)[0].strip(",!?\n")
+            if pekerjaan:
+                facts["pekerjaan"] = pekerjaan
+        except Exception:
+            pass
+
+    # Kota (contoh: "di Makassar" di bagian akhir kalimat)
+    if " di " in lowered:
+        parts = t.split(" di ")
+        last_part = parts[-1].strip()
+        kandidat_kota = last_part.split()[0].strip(",.!?\n")
+        if kandidat_kota and len(kandidat_kota) >= 3:
+            facts["kota"] = kandidat_kota
+
+    return facts
+
+
+def _merge_facts(old: dict, new: dict) -> dict:
+    """Kalau ada fakta baru tidak None, override; kalau None, pakai yang lama."""
+    merged = {}
+    for key in ["nama", "pekerjaan", "kota"]:
+        merged[key] = new.get(key) or old.get(key)
+    return merged
+
+
+def _classify_intent_type(user_text: str) -> str:
+    """Klasifikasi sangat sederhana jenis intensi user terakhir."""
+    lowered = user_text.lower()
+    if any(kw in lowered for kw in ["malam ini", "besok", "nanti", "janji"]):
+        return "JANJI/RENCANA"
+    if any(kw in lowered for kw in ["kangen", "sayang", "cinta", "rindu"]):
+        return "PERASAAN"
+    if any(kw in lowered for kw in ["marah", "kesel", "kesal", "benci"]):
+        return "KONFLIK/NEGATIF"
+    return "OBROLAN_BIASA"
+
+
+def _shorten_for_summary(s: str, max_len: int = 200) -> str:
+    """Potong teks supaya ringkasan tidak terlalu panjang."""
+    s = s.replace("\n", " ").strip()
+    if len(s) <= max_len:
+        return s
+    return s[: max_len - 3] + "..."
