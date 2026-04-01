@@ -419,51 +419,51 @@ class Orchestrator:
 
         scene.last_scene_update_ts = inp.timestamp
 
-        # --------------------------------------------------
-        # AUTO-MILESTONE UNTUK NOVA
-        # --------------------------------------------------
+    # --------------------------------------------------
+    # AUTO-MILESTONE UNTUK NOVA
+    # --------------------------------------------------
 
-        def _maybe_record_first_confession(
-            self,
-            user_state: UserState,
-            role_state: RoleState,
-            inp: OrchestratorInput,
-        ) -> None:
-            """Rekam milestone first_confession untuk Nova.
+    def _maybe_record_first_confession(
+        self,
+        user_state: UserState,
+        role_state: RoleState,
+        inp: OrchestratorInput,
+    ) -> None:
+        """Rekam milestone first_confession untuk Nova.
 
-            Kriteria sederhana:
-            - role aktif = Nova
-            - teks user mengandung kata kuat seperti "sayang" atau "cinta"
-            - belum pernah ada milestone dengan label "first_confession" untuk
-              (user_id, nova)
-            """
+        Kriteria sederhana:
+        - role aktif = Nova
+        - teks user mengandung kata kuat seperti "sayang" atau "cinta"
+        - belum pernah ada milestone dengan label "first_confession" untuk
+          (user_id, nova)
+        """
 
-            if role_state.role_id != ROLE_ID_NOVA:
-                return
+        if role_state.role_id != ROLE_ID_NOVA:
+            return
 
-            text = inp.text.lower()
-            if not any(kw in text for kw in ["sayang", "cinta", "love you", "luv u"]):
-                return
+        text = inp.text.lower()
+        if not any(kw in text for kw in ["sayang", "cinta", "love you", "luv u"]):
+            return
 
-            # Cek apakah sudah ada first_confession
-            existing = self.milestones.get_recent_milestones(
-                user_id=user_state.user_id,
-                role_id=ROLE_ID_NOVA,
-                limit=10,
-            )
-            for m in existing:
-                if m.label == "first_confession":
-                    return  # sudah pernah tercatat
+        # Cek apakah sudah ada first_confession
+        existing = self.milestones.get_recent_milestones(
+            user_id=user_state.user_id,
+            role_id=ROLE_ID_NOVA,
+            limit=10,
+        )
+        for m in existing:
+            if m.label == "first_confession":
+                return  # sudah pernah tercatat
 
-            # Tambahkan milestone baru
-            description = (
-                "Malam ketika Mas pertama kali bilang sayang secara jelas ke Nova. "
-                "Nova sangat tersentuh dan merasa hatinya dipeluk hangat waktu itu."
-            )
-            self.milestones.add_milestone(
-                user_id=user_state.user_id,
-                role_id=ROLE_ID_NOVA,
-                timestamp=inp.timestamp,
-                label="first_confession",
-                description=description,
-            )
+        # Tambahkan milestone baru
+        description = (
+            "Malam ketika Mas pertama kali bilang sayang secara jelas ke Nova. "
+            "Nova sangat tersentuh dan merasa hatinya dipeluk hangat waktu itu."
+        )
+        self.milestones.add_milestone(
+            user_id=user_state.user_id,
+            role_id=ROLE_ID_NOVA,
+            timestamp=inp.timestamp,
+            label="first_confession",
+            description=description,
+        )
