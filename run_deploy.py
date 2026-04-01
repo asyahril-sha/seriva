@@ -2,7 +2,6 @@ import os
 import sys
 import importlib
 from pathlib import Path
-
 from datetime import datetime
 
 
@@ -14,9 +13,8 @@ def log(level: str, message: str) -> None:
 def ensure_root_on_sys_path() -> Path:
     """Pastikan root project (/app di Railway) ada di sys.path."""
     root_dir = Path(__file__).resolve().parent
-    # kalau file ini di root repo, parent = root
     log("INFO", f"Project ROOT_DIR: {root_dir}")
-    log("INFO", f"Root entries: {list(p.name for p in root_dir.iterdir())}")
+    log("INFO", f"Root entries: {[p.name for p in root_dir.iterdir()]}")
 
     if str(root_dir) not in sys.path:
         sys.path.insert(0, str(root_dir))
@@ -32,7 +30,10 @@ def alias_deepseek_to_llm_env() -> None:
         os.environ["LLM_API_KEY"] = deepseek_key
         log("INFO", "LLM_API_KEY tidak ada, menggunakan DEEPSEEK_API_KEY.")
     else:
-        log("INFO", "LLM_API_KEY sudah ter-set secara eksplisit.")
+        if llm_key:
+            log("INFO", "LLM_API_KEY sudah ter-set secara eksplisit.")
+        else:
+            log("ERROR", "Tidak ada LLM_API_KEY maupun DEEPSEEK_API_KEY di env.")
 
 
 def check_env() -> bool:
@@ -40,7 +41,7 @@ def check_env() -> bool:
         "TELEGRAM_BOT_TOKEN",
         "SERIVA_ADMIN_ID",
         "WEBHOOK_URL",
-        "DEEPSEEK_API_KEY",  # kita pakai ini sebagai sumber LLM_API_KEY
+        "DEEPSEEK_API_KEY",  # dipakai sebagai sumber LLM_API_KEY
     ]
     missing = [k for k in required if not os.getenv(k)]
     if missing:
@@ -59,7 +60,8 @@ def check_env() -> bool:
 def check_core_imports() -> bool:
     """Pastikan semua modul inti bisa di-import dengan ROOT-level path.
 
-    Sebelumnya pakai prefix `seriva.` — sekarang kita cek tanpa prefix.
+    Di sini kita cek *tanpa* prefix `seriva.` karena struktur di Railway adalah
+    langsung `/app/core`, `/app/bot`, dst.
     """
 
     modules_to_check = [
@@ -88,7 +90,7 @@ def main() -> None:
     log("INFO", "🚀 SERIVA – Deployment Runner (Webhook Mode)")
     log("INFO", "============================================================")
 
-    root_dir = ensure_root_on_sys_path()
+    ensure_root_on_sys_path()
     alias_deepseek_to_llm_env()
 
     if not check_env():
@@ -98,7 +100,9 @@ def main() -> None:
     if not check_core_imports():
         log(
             "ERROR",
-            "❌ Some core imports failed. Pastikan semua import sudah pakai root-level, contoh: 'from core.state_models import UserState' bukan 'from seriva.core.state_models import UserState'.",
+            "❌ Some core imports failed. Pastikan semua import sudah pakai root-level, "
+            "contoh: 'from core.state_models import UserState' bukan "
+            "'from seriva.core.state_models import UserState'.",
         )
         sys.exit(1)
 
