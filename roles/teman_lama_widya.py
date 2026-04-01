@@ -42,7 +42,7 @@ class TemanLamaWidyaRole(BaseRole):
 
         user_profile_summary = getattr(
             user_state,
-            "user_profile_summary_for_ipar_tasha",
+            "user_profile_summary_for_teman_lama_widya",
             None,
         ) or default_profile
 
