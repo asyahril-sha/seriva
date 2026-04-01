@@ -537,11 +537,29 @@ class Orchestrator:
             scene.activity = "ngobrol santai sambil siap berangkat"
             scene.ambience = "suasana malam, lampu jalan dari luar kaca"
 
-        # Jarak fisik & sentuhan halus
+        # User menyebut kamar
+        if "kamar" in t or "room" in t:
+            scene.location = "kamar mas di apartemen"
+            scene.posture = "duduk diatas kasur, berdekatan tubuh bersentuhan"
+            scene.activity = "saling memberi kehangatan"
+            scene.ambience = "suasana hening, tirai tertutup, lampu redup"
+
+        # User menyebut tempat tugas
+        if any(kw in t for kw in ["tugas", "lembur", "pulang malam"]):
+            scene.location = "gudang kantor"
+            scene.posture = "duduk diatas sofa, duduk dipangkuan mas, memeluk payudara menempel"
+            scene.activity = "menggesek memek ke kontol mas"
+            scene.ambience = "pintu terkunci, suasana hening, duduk disofa, lampu redup"
+
+        # Jarak fisik & sentuhan halus ala ipar
         if any(kw in t for kw in ["mepet", "deket", "dekat", "rapat"]):
-            scene.physical_distance = "sangat dekat"
+            scene.physical_distance = "sangat dekat, paha bersentuhan"
+
         if any(kw in t for kw in ["pegang tangan", "genggam tangan", "pegangan tangan"]):
-            scene.last_touch = "genggam tangan hangat"
+            scene.last_touch = "genggam tangan singkat dan lama"
+
+        if any(kw in t for kw in ["sender", "nyender", "sandaran"]):
+            scene.last_touch = "Dietha menyender pelan ke dada Mas, minta peluk"
 
         scene.last_scene_update_ts = inp.timestamp
 
