@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from seriva.config.constants import (
+from config.constants import (
     ROLE_ID_NOVA,
     ROLE_ID_WANITA_BERSUAMI_SISKA,
     ROLE_ID_IPAR_TASHA,
