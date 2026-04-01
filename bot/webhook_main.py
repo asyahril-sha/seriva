@@ -14,10 +14,6 @@ Env yang dibutuhkan:
 Catatan:
 - Jika LLM_API_KEY tidak ada tapi DEEPSEEK_API_KEY ada, maka
   DEEPSEEK_API_KEY akan dipakai sebagai LLM_API_KEY.
-
-Jalankan dengan:
-    python -m bot.webhook_main
-atau melalui run_deploy.py di Railway.
 """
 
 from __future__ import annotations
@@ -61,12 +57,6 @@ logger = logging.getLogger(__name__)
 
 
 def _alias_deepseek_to_llm() -> None:
-    """Jika LLM_API_KEY kosong tapi DEEPSEEK_API_KEY ada, pakai itu.
-
-    Ini membuat konfigurasi DeepSeek lebih natural: kamu bisa hanya mengisi
-    DEEPSEEK_API_KEY di Railway, dan kode akan otomatis mengisinya ke LLM_API_KEY.
-    """
-
     llm_key = os.getenv("LLM_API_KEY")
     deepseek_key = os.getenv("DEEPSEEK_API_KEY")
 
@@ -76,10 +66,8 @@ def _alias_deepseek_to_llm() -> None:
 
 
 def main() -> None:
-    # Alias env DeepSeek ke LLM
     _alias_deepseek_to_llm()
 
-    # Baca env
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     admin_id = os.getenv("SERIVA_ADMIN_ID")
     webhook_url = os.getenv("WEBHOOK_URL")  # contoh: https://seriva.up.railway.app/webhook
@@ -105,7 +93,6 @@ def main() -> None:
             "(atau DEEPSEEK_API_KEY diisi sehingga LLM_API_KEY otomatis terisi)."
         )
 
-    # Setup core SERIVA
     user_store = InMemoryUserStateStore()
     world_store = InMemoryWorldStateStore()
     milestone_store = MilestoneStore()
@@ -124,14 +111,11 @@ def main() -> None:
         milestone_store=milestone_store,
     )
 
-    # Build Telegram Application
     app = Application.builder().token(bot_token).build()
 
-    # Command handlers
     app.add_handler(CommandHandler("start", start_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("help", help_handler(orchestrator, admin_id)))
 
-    # /role tanpa argumen → list role
     app.add_handler(
         CommandHandler(
             "role",
@@ -139,7 +123,6 @@ def main() -> None:
             filters=~filters.Regex(r"^/role\\s+"),
         )
     )
-    # /role <id> → switch role
     app.add_handler(
         CommandHandler(
             "role",
@@ -156,12 +139,10 @@ def main() -> None:
     app.add_handler(CommandHandler("resume", resume_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("flashback", flashback_handler(orchestrator, admin_id)))
 
-    # Provider commands
     app.add_handler(CommandHandler("nego", nego_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("deal", deal_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("mulai", mulai_handler(orchestrator, admin_id)))
 
-    # Message handler (teks biasa)
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
@@ -173,12 +154,11 @@ def main() -> None:
     logger.info("Webhook URL: %s", webhook_url)
     logger.info("Listening on 0.0.0.0:%d", port)
 
-    # Jalankan webhook built-in telegram-ext
     app.run_webhook(
         listen="0.0.0.0",
         port=port,
-        url_path="/webhook",        # path lokal
-        webhook_url=webhook_url,      # URL publik penuh (harus mengandung /webhook)
+        url_path="/webhook",
+        webhook_url=webhook_url,
     )
 
 
