@@ -309,6 +309,9 @@ class Orchestrator:
         if any(word in t for word in ["marah", "kesel", "kesal", "nggak suka"]):
             tone = "CONFLICT"
             content = "REJECTION"
+        if any(word in t for word in ["ahhh", "enghh", "emmpph", "uhhh"]):
+            tone = "SOFT"
+            content = "HORNY"
             strength = max(strength, 2)
 
         return InteractionContext(
