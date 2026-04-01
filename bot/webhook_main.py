@@ -5,16 +5,19 @@ Menggunakan python-telegram-bot run_webhook, tanpa aiohttp manual.
 Env yang dibutuhkan:
 - TELEGRAM_BOT_TOKEN
 - SERIVA_ADMIN_ID
-- LLM_API_KEY
+- LLM_API_KEY      (atau DEEPSEEK_API_KEY, lihat catatan di bawah)
 - LLM_BASE_URL
 - LLM_MODEL
 - WEBHOOK_URL      -> URL publik Railway untuk webhook (https://.../webhook)
 - PORT             -> Port yang diberikan Railway (default 8080 jika tidak ada)
 
+Catatan:
+- Jika LLM_API_KEY tidak ada tapi DEEPSEEK_API_KEY ada, maka
+  DEEPSEEK_API_KEY akan dipakai sebagai LLM_API_KEY.
+
 Jalankan dengan:
     python -m bot.webhook_main
-
-Biasanya akan dipanggil dari run_deploy.py di Railway.
+atau melalui run_deploy.py di Railway.
 """
 
 from __future__ import annotations
@@ -57,7 +60,25 @@ from bot.handlers import (
 logger = logging.getLogger(__name__)
 
 
+def _alias_deepseek_to_llm() -> None:
+    """Jika LLM_API_KEY kosong tapi DEEPSEEK_API_KEY ada, pakai itu.
+
+    Ini membuat konfigurasi DeepSeek lebih natural: kamu bisa hanya mengisi
+    DEEPSEEK_API_KEY di Railway, dan kode akan otomatis mengisinya ke LLM_API_KEY.
+    """
+
+    llm_key = os.getenv("LLM_API_KEY")
+    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+
+    if not llm_key and deepseek_key:
+        os.environ["LLM_API_KEY"] = deepseek_key
+        logger.info("LLM_API_KEY tidak ada, menggunakan DEEPSEEK_API_KEY sebagai gantinya.")
+
+
 def main() -> None:
+    # Alias env DeepSeek ke LLM
+    _alias_deepseek_to_llm()
+
     # Baca env
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     admin_id = os.getenv("SERIVA_ADMIN_ID")
@@ -80,7 +101,8 @@ def main() -> None:
 
     if not llm_api_key or not llm_base_url or not llm_model:
         raise RuntimeError(
-            "LLM_API_KEY, LLM_BASE_URL, dan LLM_MODEL harus di-set di environment."
+            "LLM_API_KEY, LLM_BASE_URL, dan LLM_MODEL harus di-set di environment "
+            "(atau DEEPSEEK_API_KEY diisi sehingga LLM_API_KEY otomatis terisi)."
         )
 
     # Setup core SERIVA
@@ -161,5 +183,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # Untuk testing lokal (kalau punya ngrok atau tunnel)
     main()
