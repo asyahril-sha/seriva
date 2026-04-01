@@ -29,10 +29,29 @@ class TerapisMuniraRole(BaseRole):
         relationship = role_state.relationship
         scene = role_state.scene
 
+        # Ringkasan percakapan terakhir (diisi oleh Orchestrator)
+        last_summary = role_state.last_conversation_summary
+
+        # Profil user untuk Munira – sementara pakai default,
+        # nanti bisa dipindah ke UserState.
+        default_profile = (
+            "Nama Mas: Adi\n"
+            "Pekerjaan: backend developer\n"
+            "Kota tempat tinggal: Makassar\n"
+        )
+
+        user_profile_summary = getattr(
+            user_state,
+            "user_profile_summary_for_terapis_munira",
+            None,
+        ) or default_profile
+
         system_prompt = build_terapis_munira_system_prompt(
             emotions=emotions,
             relationship=relationship,
             scene=scene,
+            last_conversation_summary=last_summary,
+            user_profile_summary=user_profile_summary,
         )
 
         prefix = build_terapis_munira_user_prompt_prefix()
