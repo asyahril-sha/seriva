@@ -7,16 +7,19 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Callable
+from typing import Callable, Awaitable, TypeVar, ParamSpec
 
 from telegram import Update
-from telegram.ext import CallbackContext
+from telegram.ext import ContextTypes
 
 from config.constants import list_role_summaries, ROLE_ID_NOVA
 from core.orchestrator import Orchestrator, OrchestratorInput, OrchestratorOutput
 from core.state_models import SessionMode
 
 logger = logging.getLogger(__name__)
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 # ==============================
@@ -31,17 +34,25 @@ def is_authorized_user(update: Update, admin_id: str) -> bool:
     return str(user.id) == str(admin_id)
 
 
-def require_admin(admin_id: str) -> Callable:
-    """Decorator sederhana untuk memblokir non-admin."""
+def require_admin(admin_id: str) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
+    """Decorator sederhana untuk memblokir non-admin (async-compatible)."""
 
-    def decorator(func: Callable):
-        def wrapper(update: Update, context: CallbackContext, *args, **kwargs):
+    def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:  # type: ignore[override]
+            # Expect pola (update, context, ...)
+            update: Update = args[0]
+            context: ContextTypes.DEFAULT_TYPE = args[1]
+
             if not is_authorized_user(update, admin_id):
                 chat = update.effective_chat
                 if chat is not None:
-                    chat.send_message("Maaf, bot ini hanya bisa dipakai oleh admin yang ditentukan.")
-                return
-            return func(update, context, *args, **kwargs)
+                    await chat.send_message(
+                        "Maaf, bot ini hanya bisa dipakai oleh admin yang ditentukan."
+                    )
+                # type: ignore[return-value]
+                return None
+
+            return await func(*args, **kwargs)
 
         return wrapper
 
@@ -55,11 +66,14 @@ def require_admin(admin_id: str) -> Callable:
 
 def start_handler(orchestrator: Orchestrator, admin_id: str):
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         if chat is None:
             return
-        chat.send_message(
+        await chat.send_message(
             "Halo Mas, ini SERIVA.\n\n"
             "Ketik aja seperti ngobrol biasa, atau pakai command:\n"
             "- /nova → balik ke Nova\n"
@@ -78,11 +92,14 @@ def start_handler(orchestrator: Orchestrator, admin_id: str):
 
 def help_handler(orchestrator: Orchestrator, admin_id: str):
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         if chat is None:
             return
-        chat.send_message(
+        await chat.send_message(
             "Daftar command SERIVA:\n"
             "- /nova → ngobrol dengan Nova (pasangan utama)\n"
             "- /role → lihat daftar role yang tersedia\n"
@@ -109,7 +126,10 @@ def role_list_handler(orchestrator: Orchestrator, admin_id: str):
     """/role tanpa argumen: tampilkan daftar role."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         if chat is None:
             return
@@ -121,7 +141,7 @@ def role_list_handler(orchestrator: Orchestrator, admin_id: str):
 
         lines.append("\nGunakan /role <id> untuk pindah ke role tertentu.")
 
-        chat.send_message("\n".join(lines))
+        await chat.send_message("\n".join(lines))
 
     return _handler
 
@@ -130,7 +150,10 @@ def set_nova_handler(orchestrator: Orchestrator, admin_id: str):
     """/nova: paksa role aktif ke Nova."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -140,7 +163,7 @@ def set_nova_handler(orchestrator: Orchestrator, admin_id: str):
         user_state.active_role_id = ROLE_ID_NOVA
         orchestrator._save_all(user_state, orchestrator._load_or_init_world_state())  # type: ignore[attr-defined]
 
-        chat.send_message("Sekarang kamu lagi ngobrol sama Nova, Mas.")
+        await chat.send_message("Sekarang kamu lagi ngobrol sama Nova, Mas.")
 
     return _handler
 
@@ -149,7 +172,10 @@ def set_role_handler(orchestrator: Orchestrator, admin_id: str):
     """/role <id>: pindah role aktif."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -157,7 +183,10 @@ def set_role_handler(orchestrator: Orchestrator, admin_id: str):
 
         args = context.args or []
         if not args:
-            chat.send_message("Contoh: /role teman_spesial_davina.\nKetik /role tanpa argumen untuk lihat daftar role.")
+            await chat.send_message(
+                "Contoh: /role teman_spesial_davina.\n"
+                "Ketik /role tanpa argumen untuk lihat daftar role."
+            )
             return
 
         role_id = args[0].strip()
@@ -165,7 +194,9 @@ def set_role_handler(orchestrator: Orchestrator, admin_id: str):
         summaries = list_role_summaries()
         valid_ids = {item["role_id"] for item in summaries}
         if role_id not in valid_ids:
-            chat.send_message("Role tidak ditemukan. Ketik /role untuk lihat daftar role yang ada.")
+            await chat.send_message(
+                "Role tidak ditemukan. Ketik /role untuk lihat daftar role yang ada."
+            )
             return
 
         user_state = orchestrator._load_or_init_user_state(str(user.id))  # type: ignore[attr-defined]
@@ -173,7 +204,7 @@ def set_role_handler(orchestrator: Orchestrator, admin_id: str):
         orchestrator._save_all(user_state, orchestrator._load_or_init_world_state())  # type: ignore[attr-defined]
 
         label = next((item["label"] for item in summaries if item["role_id"] == role_id), role_id)
-        chat.send_message(f"Sekarang kamu lagi sama {label}.")
+        await chat.send_message(f"Sekarang kamu lagi sama {label}.")
 
     return _handler
 
@@ -187,7 +218,10 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
     """/batal atau /end: akhiri sesi khusus (pakai logika Orchestrator)."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -201,7 +235,7 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
             command_name="batal",
         )
         out: OrchestratorOutput = orchestrator.handle_input(inp)
-        chat.send_message(out.reply_text)
+        await chat.send_message(out.reply_text)
 
     return _handler
 
@@ -210,7 +244,10 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
     """/status: tampilkan ringkasan emosi & scene role aktif."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -246,7 +283,7 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
             f"- Sentuhan terakhir: {s.last_touch or '-'}",
         ]
 
-        chat.send_message("\n".join(text_lines))
+        await chat.send_message("\n".join(text_lines))
 
     return _handler
 
@@ -260,7 +297,10 @@ def pause_handler(orchestrator: Orchestrator, admin_id: str):
     """/pause: pause sesi intens (tanpa reset state)."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -270,7 +310,7 @@ def pause_handler(orchestrator: Orchestrator, admin_id: str):
         user_state.global_session_mode = SessionMode.NORMAL
         orchestrator._save_all(user_state, orchestrator._load_or_init_world_state())  # type: ignore[attr-defined]
 
-        chat.send_message("⏸️ Sesi dihentikan sementara. Ketik /resume untuk lanjut.")
+        await chat.send_message("⏸️ Sesi dihentikan sementara. Ketik /resume untuk lanjut.")
 
     return _handler
 
@@ -279,7 +319,10 @@ def resume_handler(orchestrator: Orchestrator, admin_id: str):
     """/resume: lanjutkan sesi dari suasana terakhir."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -289,7 +332,9 @@ def resume_handler(orchestrator: Orchestrator, admin_id: str):
         user_state.global_session_mode = SessionMode.NORMAL
         orchestrator._save_all(user_state, orchestrator._load_or_init_world_state())  # type: ignore[attr-defined]
 
-        chat.send_message("▶️ Sesi dilanjutkan! Silakan lanjut ngobrol, role akan melanjutkan dari suasana terakhir.")
+        await chat.send_message(
+            "▶️ Sesi dilanjutkan! Silakan lanjut ngobrol, role akan melanjutkan dari suasana terakhir."
+        )
 
     return _handler
 
@@ -303,7 +348,10 @@ def flashback_handler(orchestrator: Orchestrator, admin_id: str):
     """/flashback: minta role aktif cerita satu momen indah/khas."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -317,7 +365,7 @@ def flashback_handler(orchestrator: Orchestrator, admin_id: str):
             command_name="flashback",
         )
         out: OrchestratorOutput = orchestrator.handle_input(inp)
-        chat.send_message(out.reply_text)
+        await chat.send_message(out.reply_text)
 
     return _handler
 
@@ -331,7 +379,10 @@ def nego_handler(orchestrator: Orchestrator, admin_id: str):
     """/nego <harga>: nego harga untuk role provider."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -348,7 +399,7 @@ def nego_handler(orchestrator: Orchestrator, admin_id: str):
             command_name="nego",
         )
         out: OrchestratorOutput = orchestrator.handle_input(inp)
-        chat.send_message(out.reply_text)
+        await chat.send_message(out.reply_text)
 
     return _handler
 
@@ -357,7 +408,10 @@ def deal_handler(orchestrator: Orchestrator, admin_id: str):
     """/deal: konfirmasi deal setelah nego."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -373,7 +427,7 @@ def deal_handler(orchestrator: Orchestrator, admin_id: str):
             command_name="deal",
         )
         out: OrchestratorOutput = orchestrator.handle_input(inp)
-        chat.send_message(out.reply_text)
+        await chat.send_message(out.reply_text)
 
     return _handler
 
@@ -382,7 +436,10 @@ def mulai_handler(orchestrator: Orchestrator, admin_id: str):
     """/mulai: mulai sesi provider setelah deal."""
 
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         if chat is None or user is None:
@@ -398,7 +455,7 @@ def mulai_handler(orchestrator: Orchestrator, admin_id: str):
             command_name="mulai",
         )
         out: OrchestratorOutput = orchestrator.handle_input(inp)
-        chat.send_message(out.reply_text)
+        await chat.send_message(out.reply_text)
 
     return _handler
 
@@ -410,7 +467,10 @@ def mulai_handler(orchestrator: Orchestrator, admin_id: str):
 
 def message_handler(orchestrator: Orchestrator, admin_id: str):
     @require_admin(admin_id)
-    def _handler(update: Update, context: CallbackContext) -> None:
+    async def _handler(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+    ) -> None:
         chat = update.effective_chat
         user = update.effective_user
         msg = update.effective_message
@@ -429,6 +489,6 @@ def message_handler(orchestrator: Orchestrator, admin_id: str):
         )
 
         out: OrchestratorOutput = orchestrator.handle_input(inp)
-        chat.send_message(out.reply_text)
+        await chat.send_message(out.reply_text)
 
     return _handler
