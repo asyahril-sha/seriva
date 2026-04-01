@@ -18,6 +18,13 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from pathlib import Path
+
+
+# Pastikan root project (/app) ada di sys.path
+ROOT_DIR = Path(__file__).resolve().parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 
 logging.basicConfig(
@@ -31,8 +38,8 @@ logger = logging.getLogger("SERIVA-DEPLOY")
 def _alias_deepseek_to_llm() -> None:
     """Jika LLM_API_KEY belum di-set tapi DEEPSEEK_API_KEY ada, pakai itu.
 
-    Ini memungkinkan kamu hanya mengisi DEEPSEEK_API_KEY di Railway,
-    sementara kode SERIVA tetap memakai nama LLM_API_KEY.
+    Ini membuat konfigurasi DeepSeek lebih natural: kamu bisa hanya mengisi
+    DEEPSEEK_API_KEY di Railway, dan kode akan otomatis mengisinya ke LLM_API_KEY.
     """
 
     llm_key = os.getenv("LLM_API_KEY")
@@ -88,7 +95,7 @@ def check_core_imports() -> bool:
         "bot.webhook_main",
     ]
 
-    failed = []
+    failed: list[str] = []
     for mod in modules:
         try:
             __import__(mod)
