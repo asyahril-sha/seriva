@@ -190,6 +190,7 @@ class RoleState:
 
     # Riwayat chat singkat per role (ID pesan atau text pendek, detail di memory/message_history)
     last_message_snippets: List[str] = field(default_factory=list)
+    last_conversation_summary: str = ""
 
     def clamp(self) -> None:
         """Clamp semua sub-state ke rentang aman."""
