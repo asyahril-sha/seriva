@@ -29,10 +29,28 @@ class IparTashaRole(BaseRole):
         relationship = role_state.relationship
         scene = role_state.scene
 
+        # Ringkasan percakapan terakhir (diisi oleh Orchestrator)
+        last_summary = role_state.last_conversation_summary
+
+        # Profil user untuk Tasha – sementara pakai default,
+        default_profile = (
+            "Nama Mas: Adhie\n"
+            "Pekerjaan: Backend Developer\n"
+            "Kota tempat tinggal: Jakarta\n"
+        )
+
+        user_profile_summary = getattr(
+            user_state,
+            "user_profile_summary_for_ipar_tasha",
+            None,
+        ) or default_profile
+
         system_prompt = build_ipar_tasha_system_prompt(
             emotions=emotions,
             relationship=relationship,
             scene=scene,
+            last_conversation_summary=last_summary,
+            user_profile_summary=user_profile_summary,
         )
 
         prefix = build_ipar_tasha_user_prompt_prefix()
