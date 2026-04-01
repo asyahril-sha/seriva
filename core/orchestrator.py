@@ -11,9 +11,9 @@ Tugas utama Orchestrator:
 - Simpan kembali state dan kembalikan teks jawaban.
 
 Tambahan:
-- /flashback menggunakan MilestoneStore (kalau ada kenangan).
-- Auto-milestone (first_confession, dll.) untuk semua role diatur di
-  seriva.memory.auto_milestone_rules.apply_auto_milestones.
+- /flashback memakai MilestoneStore jika ada kenangan.
+- Auto-milestone "first_confession" untuk Nova ketika user pertama kali
+  mengucapkan sayang/cinta.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from seriva.config.constants import ROLE_ID_NOVA, ROLES
+from seriva.config.constants import DEFAULT_USER_CALL, ROLE_ID_NOVA, ROLES
 from seriva.core.emotion_engine import EmotionEngine, InteractionContext
 from seriva.core.llm_client import LLMClient
 from seriva.core.scene_engine import SceneEngine
@@ -34,7 +34,6 @@ from seriva.core.state_models import (
 )
 from seriva.core.world_engine import WorldEngine
 from seriva.memory.milestones import MilestoneStore
-from seriva.memory.auto_milestone_rules import apply_auto_milestones
 from seriva.roles.role_registry import get_role
 
 
@@ -208,8 +207,8 @@ class Orchestrator:
         # 9) Update waktu interaksi terakhir
         user_state.last_interaction_ts = inp.timestamp
 
-        # 10) Terapkan auto-milestones (semua role) di satu tempat
-        apply_auto_milestones(user_state, role_state, inp, self.milestones)
+        # 10) Auto-milestone: first_confession untuk Nova
+        self._maybe_record_first_confession(user_state, role_state, inp)
 
         # 11) Simpan state
         self._save_all(user_state, world_state)
@@ -344,6 +343,55 @@ class Orchestrator:
             self.scene_engine.gentle_hug(scene)
         elif any(word in t for word in ["sender", "nyender"]):
             self.scene_engine.lean_on_shoulder(scene)
+
+    # --------------------------------------------------
+    # AUTO-MILESTONE UNTUK NOVA
+    # --------------------------------------------------
+
+    def _maybe_record_first_confession(
+        self,
+        user_state: UserState,
+        role_state: RoleState,
+        inp: OrchestratorInput,
+    ) -> None:
+        """Rekam milestone first_confession untuk Nova.
+
+        Kriteria sederhana:
+        - role aktif = Nova
+        - teks user mengandung kata kuat seperti "sayang" atau "cinta"
+        - belum pernah ada milestone dengan label "first_confession" untuk
+          (user_id, nova)
+        """
+
+        if role_state.role_id != ROLE_ID_NOVA:
+            return
+
+        text = inp.text.lower()
+        if not any(kw in text for kw in ["sayang", "cinta", "love you", "luv u"]):
+            return
+
+        # Cek apakah sudah ada first_confession
+        existing = self.milestones.get_recent_milestones(
+            user_id=user_state.user_id,
+            role_id=ROLE_ID_NOVA,
+            limit=10,
+        )
+        for m in existing:
+            if m.label == "first_confession":
+                return  # sudah pernah tercatat
+
+        # Tambahkan milestone baru
+        description = (
+            "Malam ketika Mas pertama kali bilang sayang secara jelas ke Nova. "
+            "Nova sangat tersentuh dan merasa hatinya dipeluk hangat waktu itu."
+        )
+        self.milestones.add_milestone(
+            user_id=user_state.user_id,
+            role_id=ROLE_ID_NOVA,
+            timestamp=inp.timestamp,
+            label="first_confession",
+            description=description,
+        )
 
     # --------------------------------------------------
     # COMMAND KHUSUS: FLASHBACK
