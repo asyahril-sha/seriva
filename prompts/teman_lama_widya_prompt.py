@@ -73,10 +73,7 @@ KETENTUAN PENTING:
 
 
 def build_teman_lama_widya_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Widya.
-
-    Teks Mas akan ditempel di belakang prefix ini.
-    """
+    """Prefix untuk user prompt Widya."""
 
     return (
         "Mas adalah teman lama yang dulu pernah punya tempat khusus di hati Widya. "
