@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from seriva.config.constants import ROLE_ID_IPAR_TASHA
-from seriva.core.state_models import RoleState, UserState
-from seriva.roles.base_role import BaseRole
-from seriva.prompts.ipar_tasha_prompt import (
+from config.constants import ROLE_ID_IPAR_TASHA
+from core.state_models import RoleState, UserState
+from roles.base_role import BaseRole
+from prompts.ipar_tasha_prompt import (
     build_ipar_tasha_system_prompt,
     build_ipar_tasha_user_prompt_prefix,
 )
