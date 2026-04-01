@@ -1,9 +1,21 @@
-"""Entrypoint Telegram bot untuk SERIVA (polling-based)."""
+"""Entrypoint Telegram bot untuk SERIVA (polling-based).
+
+Versi ini membaca konfigurasi dari config.load_config():
+- TELEGRAM_BOT_TOKEN
+- SERIVA_ADMIN_ID
+- LLM_API_KEY
+- LLM_BASE_URL
+- LLM_MODEL
+
+Jalankan dengan:
+    python -m bot.main
+atau:
+    python main.py
+"""
 
 from __future__ import annotations
 
 import logging
-import os
 
 from telegram.ext import (
     Application,
@@ -12,12 +24,14 @@ from telegram.ext import (
     filters,
 )
 
-from seriva.core.llm_client import LLMClient
+from config import load_config
+from seriva.core.llm_client import LLMClient, LLMConfig
 from seriva.core.orchestrator import Orchestrator
 from seriva.storage.inmemory_store import (
     InMemoryUserStateStore,
     InMemoryWorldStateStore,
 )
+from seriva.memory.milestones import MilestoneStore
 from bot.handlers import (
     start_handler,
     help_handler,
@@ -44,27 +58,33 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    admin_id = os.getenv("SERIVA_ADMIN_ID")
-
-    if not token or not admin_id:
-        raise RuntimeError(
-            "TELEGRAM_BOT_TOKEN dan SERIVA_ADMIN_ID harus di-set di environment."
-        )
+    # Load konfigurasi dari environment via config.py
+    cfg = load_config()
 
     # Setup core SERIVA
     user_store = InMemoryUserStateStore()
     world_store = InMemoryWorldStateStore()
-    llm = LLMClient()
+    milestone_store = MilestoneStore()
+
+    # Konfigurasi LLMClient berdasarkan env
+    llm_cfg = LLMConfig(
+        api_key=cfg.llm.api_key,
+        base_url=cfg.llm.base_url,
+        model=cfg.llm.model,
+    )
+    llm = LLMClient(config=llm_cfg)
 
     orchestrator = Orchestrator(
         user_store=user_store,
         world_store=world_store,
         llm_client=llm,
+        milestone_store=milestone_store,
     )
 
     # Setup Telegram Application
-    app = Application.builder().token(token).build()
+    app = Application.builder().token(cfg.telegram.bot_token).build()
+
+    admin_id = cfg.telegram.admin_id
 
     # Command handlers
     app.add_handler(CommandHandler("start", start_handler(orchestrator, admin_id)))
