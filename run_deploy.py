@@ -5,9 +5,20 @@ from pathlib import Path
 from datetime import datetime
 
 
+# ==============================
+# SIMPLE LOGGER
+# ==============================
+
+
 def log(level: str, message: str) -> None:
+    """Simple structured logger for deploy runner."""
     now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{now} | {level} | SERIVA-DEPLOY | {message}")
+
+
+# ==============================
+# PATH & ENV SETUP
+# ==============================
 
 
 def ensure_root_on_sys_path() -> Path:
@@ -18,6 +29,10 @@ def ensure_root_on_sys_path() -> Path:
 
     if str(root_dir) not in sys.path:
         sys.path.insert(0, str(root_dir))
+        log("INFO", f"Added {root_dir} to sys.path")
+    else:
+        log("INFO", f"Root dir {root_dir} already in sys.path")
+
     return root_dir
 
 
@@ -37,6 +52,7 @@ def alias_deepseek_to_llm_env() -> None:
 
 
 def check_env() -> bool:
+    """Cek env minimal yang dibutuhkan untuk webhook mode."""
     required = [
         "TELEGRAM_BOT_TOKEN",
         "SERIVA_ADMIN_ID",
@@ -57,10 +73,15 @@ def check_env() -> bool:
     return True
 
 
-def check_core_imports() -> bool:
-    """Pastikan semua modul inti bisa di-import dengan ROOT-level path.
+# ==============================
+# IMPORT CHECKS
+# ==============================
 
-    Di sini kita cek *tanpa* prefix `seriva.` karena struktur di Railway adalah
+
+def check_core_imports() -> bool:
+    """Pastikan semua modul inti bisa di-import dengan root-level path.
+
+    Kita cek *tanpa* prefix `seriva.` karena struktur di Railway adalah
     langsung `/app/core`, `/app/bot`, dst.
     """
 
@@ -79,10 +100,16 @@ def check_core_imports() -> bool:
     for mod_name in modules_to_check:
         try:
             importlib.import_module(mod_name)
+            log("INFO", f"✅ Import OK: {mod_name}")
         except Exception as e:  # noqa: BLE001
             log("ERROR", f"❌ Import failed: {mod_name} ({e})")
             all_ok = False
     return all_ok
+
+
+# ==============================
+# MAIN ENTRYPOINT
+# ==============================
 
 
 def main() -> None:
@@ -109,6 +136,7 @@ def main() -> None:
     # Semua ok, jalankan webhook_main
     try:
         from bot import webhook_main
+        log("INFO", "✅ Import OK: bot.webhook_main")
     except Exception as e:  # noqa: BLE001
         log("ERROR", f"Gagal import bot.webhook_main: {e}")
         sys.exit(1)
