@@ -20,8 +20,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-from seriva.core.state_models import EmotionState, Mood, RelationshipState, RoleState, UserState
-from seriva.config.constants import (
+from core.state_models import EmotionState, Mood, RelationshipState, RoleState, UserState
+from config.constants import (
     MAX_INTIMACY_INTENSITY,
     MAX_RELATIONSHIP_LEVEL,
     MIN_INTIMACY_INTENSITY,
