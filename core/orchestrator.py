@@ -339,7 +339,9 @@ class Orchestrator:
     def _update_scene_for_role(self, role_state: RoleState, inp: OrchestratorInput) -> None:
         """Dispatch ke updater scene berdasarkan role_id."""
 
-         if role_state.role_id == ROLE_ID_NOVA:
+        self._ensure_baseline_scene(role_state)
+
+        if role_state.role_id == ROLE_ID_NOVA:
             self._update_scene_for_nova(role_state, inp)
         elif role_state.role_id == ROLE_ID_TEMAN_KANTOR_IPEH:
             self._update_scene_for_ipeh(role_state, inp)
@@ -354,20 +356,7 @@ class Orchestrator:
         elif role_state.role_id == ROLE_ID_TERAPIS_AGHIA:
             self._update_scene_for_aghia(role_state, inp)          
         else:
-            # Default: kalau belum ada nilai, isi baseline halus
-            scene = role_state.scene
-            if not scene.location:
-                scene.location = "ruang yang tenang"
-            if not scene.posture:
-                scene.posture = "duduk berhadapan"
-            if not scene.activity:
-                scene.activity = "ngobrol berdua"
-            if not scene.ambience:
-                scene.ambience = "suasana hangat, lampu tidak terlalu terang"
-            if scene.time_of_day is None:
-                scene.time_of_day = TimeOfDay.NIGHT
-            if not scene.physical_distance:
-                scene.physical_distance = "sebelahan"
+            role_state.scene.last_scene_update_ts = inp.timestamp
 
     # --------------------------------------------------
     # INTERNAL HELPERS: SCENE UNTUK NOVA
