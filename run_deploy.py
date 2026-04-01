@@ -1,150 +1,116 @@
-#!/usr/bin/env python3
-"""SERIVA – Deployment Runner for Railway (Webhook Mode).
-
-Menangani langkah startup sebelum menjalankan bot webhook:
-- Cek environment variables penting.
-- Cek import modul inti SERIVA.
-- Log status.
-- Menjalankan bot.webhook_main.main().
-
-Mendukung penggunaan DEEPSEEK_API_KEY sebagai alias LLM_API_KEY.
-
-STRUKTUR YANG DIASUMSIKAN (ROOT REPO):
-(root)/run_deploy.py
-(root)/requirements.txt
-(root)/seriva/core/...
-(root)/bot/webhook_main.py
-
-Start command di Railway:
-    python run_deploy.py
-"""
-
-from __future__ import annotations
-
-import logging
 import os
 import sys
+import importlib
 from pathlib import Path
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-5s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-logger = logging.getLogger("SERIVA-DEPLOY")
-
-# ROOT_DIR adalah root project (folder yang berisi run_deploy.py, seriva/, bot/)
-ROOT_DIR = Path(__file__).resolve().parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
-logger.info("Project ROOT_DIR: %s", ROOT_DIR)
-
-# Debug: list isi ROOT_DIR
-try:
-    entries = [p.name for p in ROOT_DIR.iterdir()]
-    logger.info("Root entries: %s", entries)
-except Exception as e:  # noqa: BLE001
-    logger.error("Tidak bisa melist ROOT_DIR: %s", e)
+from datetime import datetime
 
 
-def _alias_deepseek_to_llm() -> None:
-    """Jika LLM_API_KEY belum di-set tapi DEEPSEEK_API_KEY ada, pakai itu."""
+def log(level: str, message: str) -> None:
+    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{now} | {level} | SERIVA-DEPLOY | {message}")
 
+
+def ensure_root_on_sys_path() -> Path:
+    """Pastikan root project (/app di Railway) ada di sys.path."""
+    root_dir = Path(__file__).resolve().parent
+    # kalau file ini di root repo, parent = root
+    log("INFO", f"Project ROOT_DIR: {root_dir}")
+    log("INFO", f"Root entries: {list(p.name for p in root_dir.iterdir())}")
+
+    if str(root_dir) not in sys.path:
+        sys.path.insert(0, str(root_dir))
+    return root_dir
+
+
+def alias_deepseek_to_llm_env() -> None:
+    """Kalau LLM_API_KEY kosong tapi DEEPSEEK_API_KEY ada, buat alias."""
     llm_key = os.getenv("LLM_API_KEY")
     deepseek_key = os.getenv("DEEPSEEK_API_KEY")
 
     if not llm_key and deepseek_key:
         os.environ["LLM_API_KEY"] = deepseek_key
-        logger.info("LLM_API_KEY tidak ada, menggunakan DEEPSEEK_API_KEY.")
+        log("INFO", "LLM_API_KEY tidak ada, menggunakan DEEPSEEK_API_KEY.")
+    else:
+        log("INFO", "LLM_API_KEY sudah ter-set secara eksplisit.")
 
 
 def check_env() -> bool:
-    """Cek environment variables yang wajib ada."""
-
-    _alias_deepseek_to_llm()
-
     required = [
         "TELEGRAM_BOT_TOKEN",
         "SERIVA_ADMIN_ID",
-        "LLM_API_KEY",      # bisa terisi dari DEEPSEEK_API_KEY
-        "LLM_BASE_URL",
-        "LLM_MODEL",
         "WEBHOOK_URL",
+        "DEEPSEEK_API_KEY",  # kita pakai ini sebagai sumber LLM_API_KEY
     ]
-    missing = [v for v in required if not os.getenv(v)]
+    missing = [k for k in required if not os.getenv(k)]
     if missing:
-        logger.error("❌ Missing env vars: %s", missing)
+        log("ERROR", f"Missing required env vars: {missing}")
         return False
 
-    logger.info("✅ All required env vars are set.")
-    logger.info("TELEGRAM_BOT_TOKEN: %s...", os.getenv("TELEGRAM_BOT_TOKEN")[:10])
-    logger.info("SERIVA_ADMIN_ID: %s", os.getenv("SERIVA_ADMIN_ID"))
-    logger.info("WEBHOOK_URL: %s", os.getenv("WEBHOOK_URL"))
-
+    log("INFO", "✅ All required env vars are set.")
+    log("INFO", f"TELEGRAM_BOT_TOKEN: {os.getenv('TELEGRAM_BOT_TOKEN')[:10]}...")
+    log("INFO", f"SERIVA_ADMIN_ID: {os.getenv('SERIVA_ADMIN_ID')}")
+    log("INFO", f"WEBHOOK_URL: {os.getenv('WEBHOOK_URL')}")
     if os.getenv("DEEPSEEK_API_KEY"):
-        logger.info("DEEPSEEK_API_KEY is set (used as LLM_API_KEY if LLM_API_KEY was empty).")
-
+        log("INFO", "DEEPSEEK_API_KEY is set (used as LLM_API_KEY if LLM_API_KEY was empty).")
     return True
 
 
 def check_core_imports() -> bool:
-    """Cek import modul inti SERIVA."""
+    """Pastikan semua modul inti bisa di-import dengan ROOT-level path.
 
-    logger.info("🔍 Checking core imports...")
+    Sebelumnya pakai prefix `seriva.` — sekarang kita cek tanpa prefix.
+    """
 
-    modules = [
-        "seriva.core.state_models",
-        "seriva.core.emotion_engine",
-        "seriva.core.scene_engine",
-        "seriva.core.world_engine",
-        "seriva.core.orchestrator",
-        "seriva.roles.role_registry",
+    modules_to_check = [
+        "core.state_models",
+        "core.emotion_engine",
+        "core.scene_engine",
+        "core.world_engine",
+        "core.orchestrator",
+        "roles.role_registry",
         "bot.webhook_main",
     ]
 
-    failed: list[str] = []
-    for mod in modules:
+    all_ok = True
+    log("INFO", "🔍 Checking core imports...")
+    for mod_name in modules_to_check:
         try:
-            __import__(mod)
-            logger.info("✅ Import OK: %s", mod)
+            importlib.import_module(mod_name)
         except Exception as e:  # noqa: BLE001
-            logger.error("❌ Import failed: %s (%s)", mod, e)
-            failed.append(mod)
-
-    if failed:
-        logger.error("❌ Some core imports failed: %s", failed)
-        return False
-
-    logger.info("✅ All core imports OK.")
-    return True
+            log("ERROR", f"❌ Import failed: {mod_name} ({e})")
+            all_ok = False
+    return all_ok
 
 
 def main() -> None:
-    logger.info("=" * 60)
-    logger.info("🚀 SERIVA – Deployment Runner (Webhook Mode)")
-    logger.info("=" * 60)
+    log("INFO", "============================================================")
+    log("INFO", "🚀 SERIVA – Deployment Runner (Webhook Mode)")
+    log("INFO", "============================================================")
+
+    root_dir = ensure_root_on_sys_path()
+    alias_deepseek_to_llm_env()
 
     if not check_env():
+        log("ERROR", "Environment check failed. Exiting.")
         sys.exit(1)
 
     if not check_core_imports():
+        log(
+            "ERROR",
+            "❌ Some core imports failed. Pastikan semua import sudah pakai root-level, contoh: 'from core.state_models import UserState' bukan 'from seriva.core.state_models import UserState'.",
+        )
         sys.exit(1)
 
-    logger.info("=" * 60)
-    logger.info("✅ Preflight checks passed, starting SERIVA bot (webhook)...")
-    logger.info("=" * 60)
-
+    # Semua ok, jalankan webhook_main
     try:
-        from bot.webhook_main import main as bot_main
-        bot_main()
-    except KeyboardInterrupt:
-        logger.info("🛑 Bot stopped by user")
-        sys.exit(0)
+        from bot import webhook_main
     except Exception as e:  # noqa: BLE001
-        logger.error("❌ Bot error: %s", e, exc_info=True)
+        log("ERROR", f"Gagal import bot.webhook_main: {e}")
         sys.exit(1)
+
+    log("INFO", "✅ Starting webhook_main.main() ...")
+    webhook_main.main()
 
 
 if __name__ == "__main__":
