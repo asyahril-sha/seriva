@@ -319,20 +319,6 @@ class Orchestrator:
             self._update_scene_for_nova(role_state, inp)
         elif role_state.role_id == ROLE_ID_TEMAN_KANTOR_IPEH:
             self._update_scene_for_ipeh(role_state, inp)
-        elif role_state.role_id == ROLE_ID_TEMAN_LAMA_WIDYA:
-            self._update_scene_for_tem");
-
-    # --------------------------------------------------
-    # INTERNAL HELPERS: SCENE PER ROLE
-    # --------------------------------------------------
-
-    def _update_scene_for_role(self, role_state: RoleState, inp: OrchestratorInput) -> None:
-        """Dispatch ke updater scene berdasarkan role_id."""
-
-        if role_state.role_id == ROLE_ID_NOVA:
-            self._update_scene_for_nova(role_state, inp)
-        elif role_state.role_id == ROLE_ID_TEMAN_KANTOR_IPEH:
-            self._update_scene_for_ipeh(role_state, inp)
         else:
             # Default: kalau belum ada nilai, isi baseline halus
             scene = role_state.scene
