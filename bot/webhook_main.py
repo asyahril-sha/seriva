@@ -8,11 +8,13 @@ Env yang dibutuhkan:
 - LLM_API_KEY
 - LLM_BASE_URL
 - LLM_MODEL
-- WEBHOOK_URL      -> URL publik Railway untuk webhook (https://...)
+- WEBHOOK_URL      -> URL publik Railway untuk webhook (https://.../webhook)
 - PORT             -> Port yang diberikan Railway (default 8080 jika tidak ada)
 
-Jalankan di Railway dengan:
+Jalankan dengan:
     python -m bot.webhook_main
+
+Biasanya akan dipanggil dari run_deploy.py di Railway.
 """
 
 from __future__ import annotations
@@ -52,10 +54,6 @@ from bot.handlers import (
 )
 
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
 logger = logging.getLogger(__name__)
 
 
@@ -153,14 +151,15 @@ def main() -> None:
     logger.info("Webhook URL: %s", webhook_url)
     logger.info("Listening on 0.0.0.0:%d", port)
 
-    # Menjalankan webhook built-in telegram-ext
+    # Jalankan webhook built-in telegram-ext
     app.run_webhook(
         listen="0.0.0.0",
         port=port,
-        url_path="/webhook",  # path lokal
-        webhook_url=webhook_url,  # URL publik penuh
+        url_path="/webhook",        # path lokal
+        webhook_url=webhook_url,      # URL publik penuh (harus mengandung /webhook)
     )
 
 
 if __name__ == "__main__":
+    # Untuk testing lokal (kalau punya ngrok atau tunnel)
     main()
