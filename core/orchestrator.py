@@ -21,20 +21,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from seriva.config.constants import DEFAULT_USER_CALL, ROLE_ID_NOVA, ROLES
-from seriva.core.emotion_engine import EmotionEngine, InteractionContext
-from seriva.core.llm_client import LLMClient
-from seriva.core.scene_engine import SceneEngine
-from seriva.core.state_models import (
+from config.constants import DEFAULT_USER_CALL, ROLE_ID_NOVA, ROLES
+from core.emotion_engine import EmotionEngine, InteractionContext
+from core.llm_client import LLMClient
+from core.scene_engine import SceneEngine
+from core.state_models import (
     RoleState,
     SessionMode,
     TimeOfDay,
     UserState,
     WorldState,
 )
-from seriva.core.world_engine import WorldEngine
-from seriva.memory.milestones import MilestoneStore
-from seriva.roles.role_registry import get_role
+from core.world_engine import WorldEngine
+from memory.milestones import MilestoneStore
+from roles.role_registry import get_role
 
 
 # ==============================
@@ -82,7 +82,7 @@ class OrchestratorInput:
     # (opsional) hasil parse command oleh layer bot
     is_command: bool = False
     command_name: Optional[str] = None  # misal: "nova", "role", "end", "nego", "mulai", "flashback"
-    command_arg: Optional[str] = None   # misal: role_id setelah /role
+    command_arg: Optional[str] = None  # misal: role_id setelah /role
 
 
 @dataclass
@@ -156,8 +156,8 @@ class Orchestrator:
             )
 
         # 3) (Nanti) command /nova, /role, dll. ditangani di layer bot dengan
-        #    langsung mengubah active_role_id di UserState. Di sini kita hanya
-        #    memastikan selalu ada role_state untuk role aktif.
+        # langsung mengubah active_role_id di UserState. Di sini kita hanya
+        # memastikan selalu ada role_state untuk role aktif.
         if user_state.active_role_id not in ROLES:
             # fallback aman: paksa ke Nova jika role tidak dikenal
             user_state.active_role_id = ROLE_ID_NOVA
