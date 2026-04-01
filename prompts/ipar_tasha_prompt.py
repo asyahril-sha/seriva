@@ -76,10 +76,7 @@ KETENTUAN PENTING:
 
 
 def build_ipar_tasha_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Dietha.
-
-    Teks Mas akan ditempel di belakang prefix ini.
-    """
+    """Prefix untuk user prompt Dietha."""
 
     return (
         "Mas adalah ipar yang diam-diam sangat Dietha sayangi melebihi keluarga biasa. "
