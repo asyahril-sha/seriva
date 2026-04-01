@@ -24,21 +24,21 @@ from dataclasses import dataclass
 # Import core SERIVA
 # ----------------------------------------
 
-from seriva.config.constants import ROLES, ROLE_ID_NOVA  # noqa: F401
-from seriva.core.state_models import UserState, WorldState  # noqa: F401
-from seriva.core.emotion_engine import EmotionEngine  # noqa: F401
-from seriva.core.scene_engine import SceneEngine  # noqa: F401
-from seriva.core.world_engine import WorldEngine  # noqa: F401
-from seriva.core.orchestrator import (
+from config.constants import ROLES, ROLE_ID_NOVA  # noqa: F401
+from core.state_models import UserState, WorldState  # noqa: F401
+from core.emotion_engine import EmotionEngine  # noqa: F401
+from core.scene_engine import SceneEngine  # noqa: F401
+from core.world_engine import WorldEngine  # noqa: F401
+from core.orchestrator import (
     Orchestrator,
     OrchestratorInput,
     UserStateStore,
     WorldStateStore,
 )
-from seriva.memory.milestones import MilestoneStore  # noqa: F401
-from seriva.memory.message_history import MessageHistoryStore  # noqa: F401
-from seriva.roles.role_registry import get_role  # noqa: F401
-from seriva.storage.inmemory_store import (
+from memory.milestones import MilestoneStore  # noqa: F401
+from memory.message_history import MessageHistoryStore  # noqa: F401
+from roles.role_registry import get_role  # noqa: F401
+from storage.inmemory_store import (
     InMemoryUserStateStore,
     InMemoryWorldStateStore,
 )
