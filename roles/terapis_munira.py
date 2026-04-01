@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from seriva.config.constants import ROLE_ID_TERAPIS_MUNIRA
-from seriva.core.state_models import RoleState, UserState
-from seriva.roles.base_role import BaseRole
-from seriva.prompts.terapis_munira_prompt import (
+from config.constants import ROLE_ID_TERAPIS_MUNIRA
+from core.state_models import RoleState, UserState
+from roles.base_role import BaseRole
+from prompts.terapis_munira_prompt import (
     build_terapis_munira_system_prompt,
     build_terapis_munira_user_prompt_prefix,
 )
