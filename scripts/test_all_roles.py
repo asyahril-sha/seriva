@@ -19,18 +19,18 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from seriva.config.constants import ROLES
-from seriva.core.orchestrator import (
+from config.constants import ROLES
+from core.orchestrator import (
     Orchestrator,
     OrchestratorInput,
     UserStateStore,
     WorldStateStore,
 )
-from seriva.storage.inmemory_store import (
+from storage.inmemory_store import (
     InMemoryUserStateStore,
     InMemoryWorldStateStore,
 )
-from seriva.memory.milestones import MilestoneStore
+from memory.milestones import MilestoneStore
 
 
 # ----------------------------------------
