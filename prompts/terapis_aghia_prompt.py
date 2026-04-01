@@ -74,10 +74,7 @@ KETENTUAN PENTING:
 
 
 def build_terapis_aghia_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Aghnia.
-
-    Teks Mas akan ditempel di belakang prefix ini.
-    """
+    """Prefix untuk user prompt Aghnia."""
 
     return (
         "Mas adalah klien yang Aghnia tangani secara khusus, "
