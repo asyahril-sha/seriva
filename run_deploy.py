@@ -52,11 +52,11 @@ def alias_deepseek_to_llm_env() -> None:
 
 
 def check_env() -> bool:
-    """Cek env minimal yang dibutuhkan untuk webhook mode."""
+    """Cek env minimal yang dibutuhkan."""
     required = [
         "TELEGRAM_BOT_TOKEN",
         "SERIVA_ADMIN_ID",
-        "WEBHOOK_URL",
+        # Untuk polling, WEBHOOK_URL tidak wajib, tapi kita biarkan saja di env kalau ada
         "DEEPSEEK_API_KEY",  # dipakai sebagai sumber LLM_API_KEY
     ]
     missing = [k for k in required if not os.getenv(k)]
@@ -67,7 +67,8 @@ def check_env() -> bool:
     log("INFO", "✅ All required env vars are set.")
     log("INFO", f"TELEGRAM_BOT_TOKEN: {os.getenv('TELEGRAM_BOT_TOKEN')[:10]}...")
     log("INFO", f"SERIVA_ADMIN_ID: {os.getenv('SERIVA_ADMIN_ID')}")
-    log("INFO", f"WEBHOOK_URL: {os.getenv('WEBHOOK_URL')}")
+    if os.getenv("WEBHOOK_URL"):
+        log("INFO", f"WEBHOOK_URL (ignored in polling mode): {os.getenv('WEBHOOK_URL')}")
     if os.getenv("DEEPSEEK_API_KEY"):
         log("INFO", "DEEPSEEK_API_KEY is set (used as LLM_API_KEY if LLM_API_KEY was empty).")
     return True
@@ -79,11 +80,7 @@ def check_env() -> bool:
 
 
 def check_core_imports() -> bool:
-    """Pastikan semua modul inti bisa di-import dengan root-level path.
-
-    Kita cek *tanpa* prefix `seriva.` karena struktur di Railway adalah
-    langsung `/app/core`, `/app/bot`, dst.
-    """
+    """Pastikan semua modul inti bisa di-import dengan root-level path."""
 
     modules_to_check = [
         "core.state_models",
@@ -92,7 +89,7 @@ def check_core_imports() -> bool:
         "core.world_engine",
         "core.orchestrator",
         "roles.role_registry",
-        "bot.webhook_main",
+        "bot.main",  # gunakan polling entrypoint, bukan webhook_main
     ]
 
     all_ok = True
@@ -114,7 +111,7 @@ def check_core_imports() -> bool:
 
 def main() -> None:
     log("INFO", "============================================================")
-    log("INFO", "🚀 SERIVA – Deployment Runner (Webhook Mode)")
+    log("INFO", "🚀 SERIVA – Deployment Runner (Polling Mode)")
     log("INFO", "============================================================")
 
     ensure_root_on_sys_path()
@@ -133,16 +130,16 @@ def main() -> None:
         )
         sys.exit(1)
 
-    # Semua ok, jalankan webhook_main
+    # Semua ok, jalankan bot.main (polling mode)
     try:
-        from bot import webhook_main
-        log("INFO", "✅ Import OK: bot.webhook_main")
+        from bot import main as bot_main
+        log("INFO", "✅ Import OK: bot.main (polling mode)")
     except Exception as e:  # noqa: BLE001
-        log("ERROR", f"Gagal import bot.webhook_main: {e}")
+        log("ERROR", f"Gagal import bot.main: {e}")
         sys.exit(1)
 
-    log("INFO", "✅ Starting webhook_main.main() ...")
-    webhook_main.main()
+    log("INFO", "✅ Starting bot_main.main() (polling mode) ...")
+    bot_main.main()
 
 
 if __name__ == "__main__":
