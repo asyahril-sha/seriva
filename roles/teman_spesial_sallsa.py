@@ -29,10 +29,29 @@ class TemanSpesialSallsaRole(BaseRole):
         relationship = role_state.relationship
         scene = role_state.scene
 
+        # Ringkasan percakapan terakhir (diisi oleh Orchestrator)
+        last_summary = role_state.last_conversation_summary
+
+        # Profil user untuk Tasha – sementara pakai default,
+        # nanti bisa dipindah ke UserState.
+        default_profile = (
+            "Nama Mas: Adhie\n"
+            "Pekerjaan: backend developer\n"
+            "Kota tempat tinggal: Jakarta\n"
+        )
+
+        user_profile_summary = getattr(
+            user_state,
+            "user_profile_summary_for_teman_spesial_sallsa",
+            None,
+        ) or default_profile
+
         system_prompt = build_teman_spesial_sallsa_system_prompt(
             emotions=emotions,
             relationship=relationship,
             scene=scene,
+            last_conversation_summary=last_summary,
+            user_profile_summary=user_profile_summary,
         )
 
         prefix = build_teman_spesial_sallsa_user_prompt_prefix()
