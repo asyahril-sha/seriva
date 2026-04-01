@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from seriva.config.constants import ROLE_ID_NOVA
-from seriva.core.state_models import RoleState, UserState
-from seriva.roles.base_role import BaseRole
-from seriva.prompts.nova_prompt import (
+from config.constants import ROLE_ID_NOVA
+from core.state_models import RoleState, UserState
+from roles.base_role import BaseRole
+from prompts.nova_prompt import (
     build_nova_system_prompt,
     build_nova_user_prompt_prefix,
 )
