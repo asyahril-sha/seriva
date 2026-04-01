@@ -18,16 +18,16 @@ from seriva.config.constants import (
     ROLE_ID_TEMAN_SPESIAL_DAVINA,
     ROLE_ID_TEMAN_SPESIAL_SALLSA,
 )
-from seriva.roles.base_role import Role
-from seriva.roles.nova import NovaRole
-from seriva.roles.wanita_bersuami_siska import SiskaRole
-from seriva.roles.ipar_tasha import IparTashaRole
-from seriva.roles.teman_kantor_ipeh import TemanKantorIpehRole
-from seriva.roles.teman_lama_widya import TemanLamaWidyaRole
-from seriva.roles.terapis_aghia import TerapisAghiaRole
-from seriva.roles.terapis_munira import TerapisMuniraRole
-from seriva.roles.teman_spesial_davina import TemanSpesialDavinaRole
-from seriva.roles.teman_spesial_sallsa import TemanSpesialSallsaRole
+from roles.base_role import Role
+from roles.nova import NovaRole
+from roles.wanita_bersuami_siska import SiskaRole
+from roles.ipar_tasha import IparTashaRole
+from roles.teman_kantor_ipeh import TemanKantorIpehRole
+from roles.teman_lama_widya import TemanLamaWidyaRole
+from roles.terapis_aghia import TerapisAghiaRole
+from roles.terapis_munira import TerapisMuniraRole
+from roles.teman_spesial_davina import TemanSpesialDavinaRole
+from roles.teman_spesial_sallsa import TemanSpesialSallsaRole
 
 
 # Inisialisasi instance role (singleton sederhana)
