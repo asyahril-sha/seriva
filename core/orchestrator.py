@@ -454,9 +454,23 @@ class Orchestrator:
         # User menyebut kamar
         if "kamar" in t or "room" in t:
             scene.location = "kamar kamu di rumah keluarga"
-            scene.posture = "duduk di tepi kasur, berdekatan tubuh bersentuhan"
+            scene.posture = "duduk diatas kasur, berdekatan tubuh bersentuhan"
             scene.activity = "saling memberi kehangatan"
-            scene.ambience = "suasana hening, tirai tertutup, lampu redup"
+            scene.ambience = "pintu terkunci, suasana hening, tirai tertutup, lampu redup"
+
+        # User menyebut tempat tidur
+        if any(kw in t for kw in ["kasur", "ranjang", "bersandar dikasur"]):
+            scene.location = "kamar kamu, kamar mas"
+            scene.posture = "duduk diatas kasur, duduk dipangkuan mas, memeluk payudara menempel"
+            scene.activity = "duduk bersandar dipelukan mas"
+            scene.ambience = "pintu terkunci, suasana hening, tirai tertutup, lampu redup"
+          
+        # User menyebut petting
+        if any(kw in t for kw in ["petting", "duduk diatas mas", "gesekin memek ke kontol mas"]):
+            scene.location = "kasur, sofa"
+            scene.posture = "uduk dipangkuan mas, gesek memek ke kontol mas, memeluk payudara menempel"
+            scene.activity = "menggesek memek ke kontol mas"
+            scene.ambience = "pintu terkunci, suasana hening, tirai tertutup, lampu redup"
 
         # User menyebut mobil / parkiran → momen berdua di luar rumah
         if "mobil" in t or "parkiran" in t or "parkir" in t:
