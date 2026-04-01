@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from seriva.core.state_models import RoleState, UserState
+from core.state_models import RoleState, UserState
 
 
 class Role(Protocol):  # pragma: no cover - interface
