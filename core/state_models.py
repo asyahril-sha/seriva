@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
-from seriva.config.constants import (
+from config.constants import (
     MAX_DRAMA_LEVEL,
     MAX_INTIMACY_INTENSITY,
     MAX_RELATIONSHIP_LEVEL,
