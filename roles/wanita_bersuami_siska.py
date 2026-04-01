@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from seriva.config.constants import ROLE_ID_WANITA_BERSUAMI_SISKA
-from seriva.core.state_models import RoleState, UserState
-from seriva.roles.base_role import BaseRole
-from seriva.prompts.wanita_bersuami_siska_prompt import (
+from config.constants import ROLE_ID_WANITA_BERSUAMI_SISKA
+from core.state_models import RoleState, UserState
+from roles.base_role import BaseRole
+from prompts.wanita_bersuami_siska_prompt import (
     build_siska_system_prompt,
     build_siska_user_prompt_prefix,
 )
