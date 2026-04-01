@@ -74,10 +74,7 @@ KETENTUAN PENTING:
 
 
 def build_teman_spesial_sallsa_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Sallsa.
-
-    Teks Mas akan ditempel di belakang prefix ini.
-    """
+    """Prefix untuk user prompt Sallsa."""
 
     return (
         "Mas adalah orang yang Sallsa pilih buat dimanja malam ini, "
