@@ -205,6 +205,9 @@ class Orchestrator:
         # 11) Simpan state
         self._save_all(user_state, world_state)
 
+        # 12) Simpan state
+        self._save_all(user_state, world_state)
+
         return OrchestratorOutput(
             reply_text=reply_text,
             active_role_id=user_state.active_role_id,
@@ -419,6 +422,42 @@ class Orchestrator:
 
         scene.last_scene_update_ts = inp.timestamp
 
+    # --------------------------------------------------
+    # CONVERSATION SUMMARY PER ROLE
+    # --------------------------------------------------
+
+    def _update_conversation_summary(
+        self,
+        user_state: UserState,
+        role_state: RoleState,
+        inp: OrchestratorInput,
+        reply_text: str,
+    ) -> None:
+        """Perbarui ringkasan singkat percakapan terakhir untuk role ini.
+
+        Versi sederhana: simpan 1–2 kalimat yang menjelaskan:
+        - Apa yang baru Mas sampaikan
+        - Bagaimana role merespon (garis besar)
+
+        Nanti bisa di-upgrade pakai LLM khusus kalau mau.
+        """
+
+        user_text = inp.text.strip()
+        reply = reply_text.strip()
+
+        # Potong teks supaya tidak terlalu panjang (misal 200–300 karakter)
+        def _shorten(s: str, max_len: int = 240) -> str:
+            if len(s) <= max_len:
+                return s
+            return s[: max_len - 3] + "..."
+
+        summary = (
+            "Percakapan terakhir antara Mas dan role ini: "
+            "Mas berkata: '" + _shorten(user_text, 140) + "'. "
+            "Role merespon garis besar: '" + _shorten(reply, 140) + "'."
+        )
+
+        role_state.last_conversation_summary = summary
     # --------------------------------------------------
     # AUTO-MILESTONE UNTUK NOVA
     # --------------------------------------------------
