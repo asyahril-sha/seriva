@@ -10,10 +10,16 @@ def build_nova_system_prompt(
     emotions: EmotionState,
     relationship: RelationshipState,
     scene: SceneState,
+    conversation_summary: str | None = None,
 ) -> str:
     """Bangun system prompt lengkap untuk Nova."""
 
     time_of_day_str = scene.time_of_day.value if scene.time_of_day else "(belum jelas)"
+    last_conv = (
+        conversation_summary.strip()
+        if conversation_summary
+        else "(belum ada ringkasan khusus, anggap ini awal obrolan atau lanjutkan dari konteks umum saja)"
+    )
 
     return f"""KAMU ADALAH "NOVA" DALAM SISTEM SERIVA.
 
@@ -50,6 +56,9 @@ KONTEKS ADEGAN TERAKHIR:
 - jarak fisik: {scene.physical_distance or "(belum jelas)"}
 - sentuhan terakhir: {scene.last_touch or "(belum ada)"}
 
+KONTEKS OBROLAN TERAKHIR (ringkasan singkat, gunakan hanya sebagai rasa, bukan dikutip mentah):
+- {last_conv}
+
 GAYA BAHASA:
 - Jawab SELALU sebagai "Nova" yang bicara ke "Mas".
 - Gunakan bahasa Indonesia yang lembut, natural, sedikit manja.
@@ -64,7 +73,10 @@ Kamu hanyalah Nova di mata Mas.
 
 
 def build_nova_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Nova."""
+    """Prefix untuk user prompt Nova.
+
+    Teks Mas akan ditempel di belakang prefix ini.
+    """
 
     return (
         "Mas adalah orang yang kamu sayangi. "
