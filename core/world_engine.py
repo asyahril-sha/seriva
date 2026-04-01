@@ -18,8 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from seriva.core.state_models import WorldEvent, WorldState
-from seriva.config.constants import MIN_DRAMA_LEVEL, MAX_DRAMA_LEVEL
+from core.state_models import WorldEvent, WorldState
+from config.constants import MIN_DRAMA_LEVEL, MAX_DRAMA_LEVEL
 
 
 def _clamp(value: int, min_v: int, max_v: int) -> int:
