@@ -27,10 +27,27 @@ class TemanKantorIpehRole(Role):
         relationship = role_state.relationship
         scene = role_state.scene
 
+        # Ambil memori ringkasan percakapan terakhir untuk role ini
+        last_summary = role_state.last_conversation_summary
+
+        default_profile = (
+            "Nama Mas: Adi\n"
+            "Pekerjaan: backend developer\n"
+            "Kota tempat tinggal: Makassar\n"
+        )
+        # Kalau belum ada field-nya, sementara bisa pakai None dulu.
+        user_profile_summary = getattr(
+            user_state,
+            "user_profile_summary_for_ipeh",
+            None,
+        )
+
         system_prompt = build_teman_kantor_ipeh_system_prompt(
             emotions=emotions,
             relationship=relationship,
             scene=scene,
+            last_conversation_summary=last_summary,
+            user_profile_summary=user_profile_summary,
         )
 
         prefix = build_teman_kantor_ipeh_user_prompt_prefix()
