@@ -9,6 +9,12 @@ Menangani langkah startup sebelum menjalankan bot webhook:
 
 Mendukung penggunaan DEEPSEEK_API_KEY sebagai alias LLM_API_KEY.
 
+STRUKTUR YANG DIASUMSIKAN (ROOT REPO):
+(root)/run_deploy.py
+(root)/requirements.txt
+(root)/seriva/core/...
+(root)/bot/webhook_main.py
+
 Start command di Railway:
     python run_deploy.py
 """
@@ -21,12 +27,6 @@ import sys
 from pathlib import Path
 
 
-# Pastikan root project (/app) ada di sys.path
-ROOT_DIR = Path(__file__).resolve().parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-5s | %(name)s | %(message)s",
@@ -34,13 +34,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger("SERIVA-DEPLOY")
 
+# ROOT_DIR adalah root project (folder yang berisi run_deploy.py, seriva/, bot/)
+ROOT_DIR = Path(__file__).resolve().parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+logger.info("Project ROOT_DIR: %s", ROOT_DIR)
+
+# Debug: list isi ROOT_DIR
+try:
+    entries = [p.name for p in ROOT_DIR.iterdir()]
+    logger.info("Root entries: %s", entries)
+except Exception as e:  # noqa: BLE001
+    logger.error("Tidak bisa melist ROOT_DIR: %s", e)
+
 
 def _alias_deepseek_to_llm() -> None:
-    """Jika LLM_API_KEY belum di-set tapi DEEPSEEK_API_KEY ada, pakai itu.
-
-    Ini membuat konfigurasi DeepSeek lebih natural: kamu bisa hanya mengisi
-    DEEPSEEK_API_KEY di Railway, dan kode akan otomatis mengisinya ke LLM_API_KEY.
-    """
+    """Jika LLM_API_KEY belum di-set tapi DEEPSEEK_API_KEY ada, pakai itu."""
 
     llm_key = os.getenv("LLM_API_KEY")
     deepseek_key = os.getenv("DEEPSEEK_API_KEY")
@@ -53,7 +63,6 @@ def _alias_deepseek_to_llm() -> None:
 def check_env() -> bool:
     """Cek environment variables yang wajib ada."""
 
-    # Alias DEEPSEEK_API_KEY -> LLM_API_KEY bila perlu
     _alias_deepseek_to_llm()
 
     required = [
@@ -129,7 +138,6 @@ def main() -> None:
 
     try:
         from bot.webhook_main import main as bot_main
-
         bot_main()
     except KeyboardInterrupt:
         logger.info("🛑 Bot stopped by user")
