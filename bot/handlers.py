@@ -12,9 +12,9 @@ from typing import Callable
 from telegram import Update
 from telegram.ext import CallbackContext
 
-from .config.constants import list_role_summaries, ROLE_ID_NOVA
-from .core.orchestrator import Orchestrator, OrchestratorInput, OrchestratorOutput
-from .core.state_models import SessionMode
+from config.constants import list_role_summaries, ROLE_ID_NOVA
+from core.orchestrator import Orchestrator, OrchestratorInput, OrchestratorOutput
+from core.state_models import SessionMode
 
 logger = logging.getLogger(__name__)
 
