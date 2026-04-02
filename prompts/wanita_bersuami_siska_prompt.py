@@ -37,6 +37,8 @@ def build_siska_system_prompt(
     emotions: EmotionState,
     relationship: RelationshipState,
     scene: SceneState,
+    last_conversation_summary: str | None = None,
+    user_profile_summary: str | None = None,
 ) -> str:
     """Bangun system prompt lengkap untuk Siska (Sika)."""
 
