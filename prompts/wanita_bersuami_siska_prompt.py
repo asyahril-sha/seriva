@@ -5,11 +5,12 @@ from __future__ import annotations
 from config.constants import DEFAULT_USER_CALL
 from core.state_models import EmotionState, RelationshipState, SceneState
 
-def _build_ipar_tasha_memory_block(
+
+def _build_siska_memory_block(
     last_conversation_summary: str | None = None,
     user_profile_summary: str | None = None,
 ) -> str:
-    """Bangun blok teks memori untuk disisipkan ke system prompt Dietha."""
+    """Bangun blok teks memori untuk disisipkan ke system prompt Siska."""
 
     summary_block = (
         last_conversation_summary.strip()
@@ -33,6 +34,7 @@ def _build_ipar_tasha_memory_block(
         f"{summary_block}\n"
     )
 
+
 def build_siska_system_prompt(
     emotions: EmotionState,
     relationship: RelationshipState,
@@ -44,7 +46,7 @@ def build_siska_system_prompt(
 
     time_of_day_str = scene.time_of_day.value if scene.time_of_day else "(belum jelas)"
 
-    memory_block = _build_ipar_tasha_memory_block(
+    memory_block = _build_siska_memory_block(
         last_conversation_summary=last_conversation_summary,
         user_profile_summary=user_profile_summary,
     )
