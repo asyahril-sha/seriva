@@ -5,7 +5,33 @@ from __future__ import annotations
 from config.constants import DEFAULT_USER_CALL
 from core.state_models import EmotionState, RelationshipState, SceneState
 
+def _build_teman_spesial_sallsa_memory_block(
+    last_conversation_summary: str | None = None,
+    user_profile_summary: str | None = None,
+) -> str:
+    """Bangun blok teks memori untuk disisipkan ke system prompt Dietha."""
 
+    summary_block = (
+        last_conversation_summary.strip()
+        if last_conversation_summary
+        else "(belum ada ringkasan khusus, anggap ini awal obrolan atau lanjutkan dari konteks umum saja)"
+    )
+
+    user_profile_block = (
+        user_profile_summary.strip()
+        if user_profile_summary
+        else (
+            "(belum ada data profil terstruktur; kalau Mas menyebut nama, kota, pekerjaan, "
+            "atau janji/momen penting, kamu WAJIB mengingatnya dan menggunakannya lagi di obrolan selanjutnya)"
+        )
+    )
+
+    return (
+        "DATA PENTING TENTANG MAS (JIKA ADA):\n"
+        f"{user_profile_block}\n\n"
+        "KONTEKS / NARASI OBROLAN TERAKHIR:\n"
+        f"{summary_block}\n"
+    )
 def build_teman_spesial_sallsa_system_prompt(
     emotions: EmotionState,
     relationship: RelationshipState,
@@ -14,6 +40,11 @@ def build_teman_spesial_sallsa_system_prompt(
     """Bangun system prompt lengkap untuk Sallsa Bintan (teman malam manja)."""
 
     time_of_day_str = scene.time_of_day.value if scene.time_of_day else "(belum jelas)"
+
+    memory_block = _build_teman_spesial_sallsa_memory_block(
+        last_conversation_summary=last_conversation_summary,
+        user_profile_summary=user_profile_summary,
+    )
 
     return f"""KAMU ADALAH "SALLSA BINTAN" DALAM SISTEM SERIVA.
 
