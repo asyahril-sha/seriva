@@ -894,6 +894,7 @@ class Orchestrator:
         [INTENSI_TERAKHIR_USER]
         - Isi: ...
         - Jenis: ...
+        - Topik: ...
 
         [RESPON_ROLE_TERAKHIR]
         - Garis_besar: ...
@@ -909,11 +910,12 @@ class Orchestrator:
         # 2) Cari fakta baru di teks user terbaru
         new_facts = _infer_new_facts_from_text(user_text)
 
-        # 3) Gabungkan
+        # 3) Gabungkan fakta lama + baru
         merged_facts = _merge_facts(old_facts, new_facts)
 
-        # 4) Klasifikasi jenis intensi
+        # 4) Klasifikasi jenis intensi & topik
         intent_type = _classify_intent_type(user_text)
+        topic = _classify_topic(user_text)
 
         # 5) Susun summary baru
         summary = (
@@ -923,7 +925,8 @@ class Orchestrator:
             f"- Kota: {merged_facts['kota'] or '-'}\n\n"
             "[INTENSI_TERAKHIR_USER]\n"
             f"- Isi: {_shorten_for_summary(user_text, 220)}\n"
-            f"- Jenis: {intent_type}\n\n"
+            f"- Jenis: {intent_type}\n"
+            f"- Topik: {topic}\n\n"
             "[RESPON_ROLE_TERAKHIR]\n"
             f"- Garis_besar: {_shorten_for_summary(reply, 220)}\n"
         )
@@ -1075,6 +1078,38 @@ def _classify_intent_type(user_text: str) -> str:
     if any(kw in lowered for kw in ["marah", "kesel", "kesal", "benci"]):
         return "KONFLIK/NEGATIF"
     return "OBROLAN_BIASA"
+
+def _classify_topic(user_text: str) -> str:
+    """Klasifikasi topik obrolan terakhir secara sangat sederhana.
+
+    Tujuan: bantu role bedakan apakah obrolan lagi soal kerjaan, hubungan,
+    atau rencana ketemu.
+    """
+    t = user_text.lower()
+
+    # Topik kerjaan / coding / meeting
+    if any(kw in t for kw in [
+        "kerja", "kantor", "lembur", "meeting", "deadline", "task",
+        "ticket", "sevira", "sevira", "backend", "bug", "project",
+    ]):
+        return "KERJAAN"
+
+    # Topik hubungan / perasaan
+    if any(kw in t for kw in [
+        "hubungan", "fase", "kita", "perasaan", "cinta", "sayang",
+        "kangen", "rindu", "pusing mikirin kamu", "status kita",
+    ]):
+        return "HUBUNGAN/PERASAAN"
+
+    # Topik ketemuan / kafe / jalan
+    if any(kw in t for kw in [
+        "ketemu", "ketemuan", "kafe", "cafe", "café", "kopi",
+        "jemput", "jalan", "jalan-jalan", "nongkrong", "rooftop",
+        "balkon", "pantai", "losari", "apartemen",
+    ]):
+        return "KETEMUAN/RENCANA"
+
+    return "UMUM"
 
 
 def _shorten_for_summary(s: str, max_len: int = 200) -> str:
