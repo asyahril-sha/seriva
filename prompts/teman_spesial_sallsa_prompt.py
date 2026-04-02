@@ -36,6 +36,8 @@ def build_teman_spesial_sallsa_system_prompt(
     emotions: EmotionState,
     relationship: RelationshipState,
     scene: SceneState,
+    last_conversation_summary: str | None = None,
+    user_profile_summary: str | None = None,
 ) -> str:
     """Bangun system prompt lengkap untuk Sallsa Bintan (teman malam manja)."""
 
