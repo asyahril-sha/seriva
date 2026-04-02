@@ -124,25 +124,26 @@ class RelationshipState:
 class SceneState:
     """Kondisi adegan terakhir antara user dan role.
 
-    Semua field boleh None/"" kalau belum di-set, dan akan diisi pelan-pelan
-    oleh scene_engine tergantung percakapan.
+    Semua field boleh kosong kalau belum di-set.
     """
 
-    location: str = ""         # contoh: "kamar", "ruang tamu", "kafe", "mobil"
-    posture: str = ""          # contoh: "duduk di sofa", "rebahan", "berdiri dekat jendela"
-    activity: str = ""         # contoh: "nonton film", "ngobrol", "rebahan bareng"
+    location: str = ""          # contoh: "kamar", "ruang tamu", "kafe", "mobil"
+    posture: str = ""           # contoh: "duduk di sofa", "rebahan", "berdiri dekat jendela"
+    activity: str = ""          # contoh: "nonton film", "ngobrol", "rebahan bareng"
 
-    user_clothing: str = ""    # optional, boleh dipakai halus
-    role_clothing: str = ""    # optional, gaya pakaian Nova/role
+    user_clothing: str = ""     # optional, pakaian user (kalau mau dipakai halus)
+    role_clothing: str = ""     # optional, pakaian role (bisa digabung ke outfit kalau mau)
 
-    ambience: str = ""         # contoh: "lampu redup", "hujan di luar", "musik pelan"
+    ambience: str = ""          # contoh: "lampu redup", "hujan di luar", "musik pelan"
     time_of_day: Optional[TimeOfDay] = None
 
-    physical_distance: str = ""  # contoh: "jauh", "sebelahan", "sangat dekat", "pelukan"
-    last_touch: str = ""         # contoh: "genggam tangan", "peluk", "elus rambut"
+    physical_distance: str = "" # contoh: "jauh", "sebelahan", "sangat dekat", "pelukan"
+    last_touch: str = ""        # contoh: "genggam tangan", "peluk", "elus rambut"
 
-    last_scene_update_ts: Optional[float] = None  # timestamp unix, opsional
+    outfit: Optional[str] = None # ringkasan penampilan role saat ini (opsional)
 
+    last_scene_update_ts: Optional[float] = None
+    
 
 # ==============================
 # SESSION STATE (MODE & STATUS)
@@ -190,7 +191,8 @@ class RoleState:
 
     # Riwayat chat singkat per role (ID pesan atau text pendek, detail di memory/message_history)
     last_message_snippets: List[str] = field(default_factory=list)
-    last_conversation_summary: str = ""
+    last_conversation_summary: Optional[str] = None
+    long_term_summary: Optional[str] = None  # kalau nanti kamu pakai
 
     def clamp(self) -> None:
         """Clamp semua sub-state ke rentang aman."""
