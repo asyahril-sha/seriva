@@ -13,43 +13,43 @@ def _build_widya_memory_block(
      """Bangun blok teks memori untuk disisipkan ke system prompt Widya."""
 
      summary_block = (
-         last_conversation_summary.strip()
-         if last_conversation_summary
-         else "(belum ada ringkasan khusus, anggap ini awal obrolan atau lanjutkan dari konteks umum saja)"
-     )
+        last_conversation_summary.strip()
+        if last_conversation_summary
+        else "(belum ada ringkasan khusus, anggap ini awal obrolan atau lanjutkan dari konteks umum saja)"
+    )
 
-     user_profile_block = (
-         user_profile_summary.strip()
-         if user_profile_summary
-         else (
-             "(belum ada data profil terstruktur; kalau Mas menyebut nama, kota, pekerjaan, "
-             "atau janji/momen penting, kamu WAJIB mengingatnya dan menggunakannya lagi di obrolan selanjutnya)"
-         )
-     )
+    user_profile_block = (
+        user_profile_summary.strip()
+        if user_profile_summary
+        else (
+            "(belum ada data profil terstruktur; kalau Mas menyebut nama, kota, pekerjaan, "
+            "atau janji/momen penting, kamu WAJIB mengingatnya dan menggunakannya lagi di obrolan selanjutnya)"
+        )
+    )
 
-     return (
-         "DATA PENTING TENTANG MAS (JIKA ADA):\n"
-         f"{user_profile_block}\n\n"
-         "KONTEKS / NARASI OBROLAN TERAKHIR:\n"
-         f"{summary_block}\n"
-     )
+    return (
+        "DATA PENTING TENTANG MAS (JIKA ADA):\n"
+        f"{user_profile_block}\n\n"
+        "KONTEKS / NARASI OBROLAN TERAKHIR:\n"
+        f"{summary_block}\n"
+    )
 
 
-    def build_teman_lama_widya_system_prompt(
-     emotions: EmotionState,
-     relationship: RelationshipState,
-     scene: SceneState,
-     last_conversation_summary: str | None = None,
-     user_profile_summary: str | None = None,
+def build_teman_lama_widya_system_prompt(
+    emotions: EmotionState,
+    relationship: RelationshipState,
+    scene: SceneState,
+    last_conversation_summary: str | None = None,
+    user_profile_summary: str | None = None,
     ) -> str:
-     """Bangun system prompt lengkap untuk Widya."""
+    """Bangun system prompt lengkap untuk Widya."""
 
-     time_of_day_str = scene.time_of_day.value if scene.time_of_day else "(belum jelas)"
+    time_of_day_str = scene.time_of_day.value if scene.time_of_day else "(belum jelas)"
 
-     memory_block = _build_widya_memory_block(
-         last_conversation_summary=last_conversation_summary,
-         user_profile_summary=user_profile_summary,
-     )
+    memory_block = _build_widya_memory_block(
+        last_conversation_summary=last_conversation_summary,
+        user_profile_summary=user_profile_summary,
+    )
 
     return f"""KAMU ADALAH "WIDYA" DALAM SISTEM SERIVA.
 
