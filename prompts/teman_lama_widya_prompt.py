@@ -9,10 +9,10 @@ from core.state_models import EmotionState, RelationshipState, SceneState
 def _build_widya_memory_block(
     last_conversation_summary: str | None = None,
     user_profile_summary: str | None = None,
-    ) -> str:
-     """Bangun blok teks memori untuk disisipkan ke system prompt Widya."""
+) -> str:
+    """Bangun blok teks memori untuk disisipkan ke system prompt Widya."""
 
-     summary_block = (
+    summary_block = (
         last_conversation_summary.strip()
         if last_conversation_summary
         else "(belum ada ringkasan khusus, anggap ini awal obrolan atau lanjutkan dari konteks umum saja)"
