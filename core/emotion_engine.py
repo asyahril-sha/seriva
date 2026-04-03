@@ -335,7 +335,7 @@ class EmotionEngine:
             self.apply_negative_interaction(role_state, ctx)
         else:
             self.apply_positive_interaction(role_state, ctx)
-        # Hitung interaksi positif untuk mengontrol kenaikan relationship/intimacy
+            # Hitung interaksi positif untuk mengontrol kenaikan relationship/intimacy
             role_state.total_positive_interactions += 1
 
     def maybe_increase_intimacy_by_level(
@@ -354,7 +354,7 @@ class EmotionEngine:
         rel = role_state.relationship
 
         # Hanya mulai mainkan intimacy kalau hubungan sudah lumayan dekat
-          if rel.relationship_level < 4:
+        if rel.relationship_level < 4:
             return
 
         # Butuh minimal X interaksi positif sebelum ada kenaikan kecil
@@ -368,7 +368,7 @@ class EmotionEngine:
                 MIN_INTIMACY_INTENSITY,
                 MAX_INTIMACY_INTENSITY,
             )
-        # reset counter supaya perlu 10 interaksi positif lagi sebelum naik lagi
+            # reset counter supaya perlu 10 interaksi positif lagi sebelum naik lagi
             role_state.total_positive_interactions = 0
 
     def normalize_after_long_session(
