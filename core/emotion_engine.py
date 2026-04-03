@@ -327,7 +327,11 @@ class EmotionEngine:
         ctx: InteractionContext,
         negative: bool = False,
     ) -> None:
-        """Helper utama dipanggil orchestrator setelah parse intent user."""
+        """Helper utama dipanggil orchestrator setelah parse intent user.
+
+        - `negative=False` → interaksi positif.
+        - `negative=True`  → interaksi negatif.
+        """
 
         role_state = user_state.get_or_create_role_state(role_id)
 
