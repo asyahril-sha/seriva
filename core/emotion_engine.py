@@ -28,27 +28,26 @@ from config.constants import (
     MIN_RELATIONSHIP_LEVEL,
 )
 
-
 # ==============================
 # TYPES
 # ==============================
 
 InteractionTone = Literal[
-    "SOFT",         # obrolan lembut, perhatian, sayang
-    "PLAYFUL",      # bercanda, menggoda ringan
-    "DEEP",         # curhat serius, momen emosional dalam
-    "COLD",         # dingin, cuek
-    "CONFLICT",     # debat, marah, tersinggung
+    "SOFT",      # obrolan lembut, perhatian, sayang
+    "PLAYFUL",   # bercanda, menggoda ringan
+    "DEEP",      # curhat serius, momen emosional dalam
+    "COLD",      # dingin, cuek
+    "CONFLICT",  # debat, marah, tersinggung
 ]
 
 InteractionContent = Literal[
-    "AFFECTION",    # bilang sayang, kangen, pujian
-    "SUPPORT",      # menguatkan saat sedih/lelah
-    "FLIRT",        # flirting halus
-    "JEALOUSY",     # memicu/menyentuh rasa cemburu
-    "ABSENCE",      # lama tidak muncul
-    "REJECTION",    # menolak, mengabaikan
-    "APOLOGY",      # minta maaf
+    "AFFECTION",  # bilang sayang, kangen, pujian
+    "SUPPORT",    # menguatkan saat sedih/lelah
+    "FLIRT",      # flirting halus
+    "JEALOUSY",   # memicu/menyentuh rasa cemburu
+    "ABSENCE",    # lama tidak muncul
+    "REJECTION",  # menolak, mengabaikan
+    "APOLOGY",    # minta maaf
 ]
 
 
@@ -61,7 +60,6 @@ class InteractionContext:
 
     tone: InteractionTone
     content: InteractionContent
-
     # Intensitas 1–3 (kecil, sedang, besar)
     strength: int = 1
 
@@ -87,7 +85,7 @@ class EmotionEngine:
     dan oleh worker (misalnya untuk efek lama tidak chat).
     """
 
-    # --- perubahan dasar ---
+    # --- perubahan dasar (dipelankan) ---
 
     POSITIVE_LOVE_GAIN = 1
     POSITIVE_LONGING_GAIN = 1
@@ -109,12 +107,23 @@ class EmotionEngine:
 
     ABSENCE_LONGING_GAIN_PER_DAY = 3
 
+    # ==============================
+    # INTERAKSI POSITIF / NEGATIF
+    # ==============================
+
     def apply_positive_interaction(
         self,
         role_state: RoleState,
         ctx: InteractionContext,
     ) -> None:
-        """Interaksi positif: sayang, dukung, curhat, flirting lembut."""
+        """Interaksi positif: sayang, dukung, curhat, flirting lembut.
+
+        Efek:
+        - Naikkan love, longing, comfort.
+        - Relationship level naik pelan.
+        - Intimacy intensity naik sedikit kalau konteksnya cukup dekat.
+        - Mood jadi HAPPY, TENDER, atau PLAYFUL tergantung tone.
+        """
 
         emotions: EmotionState = role_state.emotions
         rel: RelationshipState = role_state.relationship
@@ -128,7 +137,7 @@ class EmotionEngine:
 
         # Relationship growth lebih besar jika interaksi deep
         if ctx.tone in ("SOFT", "PLAYFUL"):
-            # hanya naik kalau relationship_level masih rendah
+            # hanya naik kalau relationship_level masih relatif rendah
             if rel.relationship_level < 6:
                 rel.relationship_level += self.RELATIONSHIP_GAIN_SMALL * strength
         elif ctx.tone == "DEEP":
@@ -158,7 +167,15 @@ class EmotionEngine:
         role_state: RoleState,
         ctx: InteractionContext,
     ) -> None:
-        """Interaksi negatif: cuek, marah, konflik."""
+        """Interaksi negatif: cuek, marah, konflik.
+
+        Efek:
+        - Turunkan love/comfort sedikit.
+        - Naikkan jealousy bila relevan.
+        - Relationship bisa turun pelan.
+        - Intimacy turun sedikit.
+        - Mood jadi ANNOYED, SAD, atau JEALOUS.
+        """
 
         emotions: EmotionState = role_state.emotions
         rel: RelationshipState = role_state.relationship
@@ -188,6 +205,10 @@ class EmotionEngine:
         emotions.clamp()
         rel.clamp()
 
+    # ==============================
+    # ABSENCE & JEALOUSY
+    # ==============================
+
     def apply_absence(
         self,
         role_state: RoleState,
@@ -214,6 +235,7 @@ class EmotionEngine:
         elif rel.relationship_level <= 6:
             emotions.mood = Mood.SAD
         else:
+            # dekat: rindu lembut
             emotions.mood = Mood.TENDER
 
         emotions.clamp()
@@ -225,7 +247,7 @@ class EmotionEngine:
         other_role_id: str,
         intensity: int = 1,
     ) -> None:
-        """Efek cemburu Nova ketika user intens dengan role lain."""
+        """Pakai saat user habis interaksi intens dengan role lain (Nova cemburu)."""
 
         emotions: EmotionState = nova_role_state.emotions
         rel: RelationshipState = nova_role_state.relationship
@@ -298,7 +320,12 @@ class EmotionEngine:
         role_state: RoleState,
         delta: int = 1,
     ) -> None:
-        """Naikkan intimacy pelan-pelan agar mendekati relationship_level."""
+        """Naikkan intimacy pelan-pelan agar mendekati relationship_level.
+
+        Hanya naik kalau:
+        - relationship_level sudah cukup (>= 4), dan
+        - sudah cukup banyak interaksi positif sejak terakhir naik.
+        """
 
         emotions = role_state.emotions
         rel = role_state.relationship
@@ -330,10 +357,17 @@ class EmotionEngine:
 
         emotions = role_state.emotions
 
+        # Turunkan jealousy pelan, naikkan comfort
         emotions.jealousy -= 5
         emotions.comfort += 5
+
+        # Love sedikit naik karena ada closure sesi
         emotions.love += 2
+
+        # Mood jadi lembut
         emotions.mood = Mood.TENDER
+
+        # Intimacy turun sedikit (cooldown) tapi tetap di level sehat
         emotions.intimacy_intensity -= 1
 
         emotions.clamp()
