@@ -228,6 +228,8 @@ class UserState:
     # Terakhir kali user interaksi (timestamp, buat background worker)
     last_interaction_ts: Optional[float] = None
 
+    total_positive_interactions: int = 0
+
     def get_or_create_role_state(self, role_id: str) -> RoleState:
         """Ambil RoleState untuk role_id, buat baru jika belum ada."""
 
