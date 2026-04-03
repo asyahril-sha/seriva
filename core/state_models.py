@@ -188,6 +188,8 @@ class RoleState:
     relationship: RelationshipState = field(default_factory=RelationshipState)
     scene: SceneState = field(default_factory=SceneState)
     session: RoleSessionState = field(default_factory=RoleSessionState)
+    
+    total_positive_interactions: int = 0
 
     # Riwayat chat singkat per role (ID pesan atau text pendek, detail di memory/message_history)
     last_message_snippets: List[str] = field(default_factory=list)
@@ -227,8 +229,6 @@ class UserState:
 
     # Terakhir kali user interaksi (timestamp, buat background worker)
     last_interaction_ts: Optional[float] = None
-
-    total_positive_interactions: int = 0
 
     def get_or_create_role_state(self, role_id: str) -> RoleState:
         """Ambil RoleState untuk role_id, buat baru jika belum ada."""
