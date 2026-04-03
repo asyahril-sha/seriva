@@ -89,14 +89,14 @@ class EmotionEngine:
 
     # --- perubahan dasar ---
 
-    POSITIVE_LOVE_GAIN = 3
-    POSITIVE_LONGING_GAIN = 2
-    POSITIVE_COMFORT_GAIN = 2
+    POSITIVE_LOVE_GAIN = 1
+    POSITIVE_LONGING_GAIN = 1
+    POSITIVE_COMFORT_GAIN = 1
 
-    NEGATIVE_LOVE_LOSS = 2
-    NEGATIVE_COMFORT_LOSS = 3
+    NEGATIVE_LOVE_LOSS = 1
+    NEGATIVE_COMFORT_LOSS = 2
 
-    JEALOUSY_SPIKE = 8
+    JEALOUSY_SPIKE = 6
 
     RELATIONSHIP_GAIN_SMALL = 1
     RELATIONSHIP_GAIN_MEDIUM = 2
@@ -104,10 +104,10 @@ class EmotionEngine:
     RELATIONSHIP_LOSS_SMALL = 1
 
     INTIMACY_GAIN_SMALL = 1
-    INTIMACY_GAIN_MEDIUM = 2
+    INTIMACY_GAIN_MEDIUM = 1
     INTIMACY_LOSS_SMALL = 1
 
-    ABSENCE_LONGING_GAIN_PER_DAY = 4
+    ABSENCE_LONGING_GAIN_PER_DAY = 3
 
     def apply_positive_interaction(
         self,
@@ -135,9 +135,12 @@ class EmotionEngine:
 
         # Relationship growth lebih besar jika interaksi deep
         if ctx.tone in ("SOFT", "PLAYFUL"):
-            rel.relationship_level += self.RELATIONSHIP_GAIN_SMALL * strength
+            # hanya naik kalau relationship_level masih rendah
+            if rel.relationship_level < 6:
+                rel.relationship_level += self.RELATIONSHIP_GAIN_SMALL * strength
         elif ctx.tone == "DEEP":
-            rel.relationship_level += self.RELATIONSHIP_GAIN_MEDIUM * strength
+            # deep moment, tapi tetap pelan
+            rel.relationship_level += self.RELATIONSHIP_GAIN_SMALL * strength
 
         # Intimacy hanya naik signifikan kalau hubungan sudah cukup tinggi
         if rel.relationship_level >= 4:
@@ -324,11 +327,7 @@ class EmotionEngine:
         ctx: InteractionContext,
         negative: bool = False,
     ) -> None:
-        """Helper utama dipanggil orchestrator setelah parse intent user.
-
-        - `negative=False` → perlakukan sebagai interaksi positif.
-        - `negative=True`  → perlakukan sebagai interaksi negatif.
-        """
+        """Helper utama dipanggil orchestrator setelah parse intent user."""
 
         role_state = user_state.get_or_create_role_state(role_id)
 
@@ -336,22 +335,32 @@ class EmotionEngine:
             self.apply_negative_interaction(role_state, ctx)
         else:
             self.apply_positive_interaction(role_state, ctx)
+        # Hitung interaksi positif untuk mengontrol kenaikan relationship/intimacy
+            role_state.total_positive_interactions += 1
 
     def maybe_increase_intimacy_by_level(
         self,
         role_state: RoleState,
         delta: int = 1,
     ) -> None:
-        """Helper untuk pelan-pelan menyamakan intimacy dengan level hubungan.
+        """Naikkan intimacy pelan-pelan agar mendekati relationship_level.
 
-        Misalnya dipanggil kadang-kadang saat ada interaksi dalam, supaya
-        intimacy_intensity tidak tertinggal jauh di bawah relationship_level.
+        Hanya naik kalau:
+        - relationship_level sudah cukup (>= 4), dan
+        - sudah cukup banyak interaksi positif sejak terakhir naik.
         """
 
         emotions = role_state.emotions
         rel = role_state.relationship
 
-        # Target kasar: intimacy <= relationship_level tapi boleh dekat
+        # Hanya mulai mainkan intimacy kalau hubungan sudah lumayan dekat
+          if rel.relationship_level < 4:
+            return
+
+        # Butuh minimal X interaksi positif sebelum ada kenaikan kecil
+        if role_state.total_positive_interactions < 10:
+            return
+
         if emotions.intimacy_intensity < rel.relationship_level:
             emotions.intimacy_intensity += max(1, delta)
             emotions.intimacy_intensity = _clamp(
@@ -359,6 +368,8 @@ class EmotionEngine:
                 MIN_INTIMACY_INTENSITY,
                 MAX_INTIMACY_INTENSITY,
             )
+        # reset counter supaya perlu 10 interaksi positif lagi sebelum naik lagi
+            role_state.total_positive_interactions = 0
 
     def normalize_after_long_session(
         self,
