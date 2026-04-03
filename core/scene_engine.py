@@ -131,7 +131,7 @@ class SceneEngine:
         update = SceneUpdateRequest(
             posture="duduk bersebelahan di sofa",
             activity=activity,
-            physical_distance="sebelahan, sangat dekat",
+            physical_distance="duduk dipangku, sangat dekat",
         )
         self.apply_update(scene, update, now_ts=now_ts)
 
@@ -142,7 +142,7 @@ class SceneEngine:
         description: str = "pelukan lembut",
         now_ts: Optional[float] = None,
     ) -> None:
-        """Preset: pelukan lembut (non-vulgar)."""
+        """Preset: pelukan lembut (vulgar)."""
 
         update = SceneUpdateRequest(
             physical_distance="pelukan erat",
