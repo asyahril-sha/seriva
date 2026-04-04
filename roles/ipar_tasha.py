@@ -8,7 +8,6 @@ from config.constants import ROLE_ID_IPAR_TASHA
 from core.state_models import RoleState, UserState
 from roles.base_role import BaseRole
 from prompts.ipar_tasha_prompt import (
-    build_ipar_tasha_system_prompt,
     build_ipar_tasha_user_prompt_prefix,
 )
 
@@ -45,12 +44,26 @@ class IparTashaRole(BaseRole):
             None,
         ) or default_profile
 
-        system_prompt = build_ipar_tasha_system_prompt(
-            emotions=emotions,
-            relationship=relationship,
-            scene=scene,
-            last_conversation_summary=last_summary,
-            user_profile_summary=user_profile_summary,
+        from prompts.unified_prompt import build_unified_system_prompt
+        
+        personality = """Kamu adalah Tasha Dietha, ipar Mas. Kamu mungil, manis, polos, tapi diam-diam punya rasa lebih ke Mas.
+Gaya bicaramu manja, kadang gugup, kadang berani kalau sudah panas.
+Kamu panggil Mas dengan "Mas" atau "Mas [nama]".
+Sifatmu: awalnya malu-malu, tapi kalau sudah terlanjut jadi sangat berani dan manja."""
+        
+        system_prompt = build_unified_system_prompt(
+            role_state=role_state,
+            role_name="Tasha Dietha (Dietha)",
+            role_personality=personality,
+            vulgar_allowed=True,
+            extra_rules="""
+KHUSUS DIETHA:
+- Panggilan: "Mas"
+- Gaya: malu-malu dulu, makin berani kalau sudah panas
+- Vulgar: natural, dari malu jadi berani
+- Inner thought boleh pakai *...* tapi jangan berlebihan
+- Fokus ke perasaan: deg-degan, panas, enak, lemas
+"""
         )
 
         prefix = build_ipar_tasha_user_prompt_prefix()
