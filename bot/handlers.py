@@ -18,8 +18,10 @@ from core.state_models import SessionMode
 
 logger = logging.getLogger(__name__)
 
+PROCESSED_UPDATES = set()
 P = ParamSpec("P")
 R = TypeVar("R")
+
 
 
 # ==============================
@@ -471,6 +473,13 @@ def message_handler(orchestrator: Orchestrator, admin_id: str):
         update: Update,
         context: ContextTypes.DEFAULT_TYPE,
     ) -> None:
+
+        if update.update_id in PROCESSED_UPDATES:
+            return
+        PROCESSED_UPDATES.add(update.update_id)
+        if len(PROCESSED_UPDATES) > 1000:
+            PROCESSED_UPDATES.clear()
+        
         chat = update.effective_chat
         user = update.effective_user
         msg = update.effective_message
