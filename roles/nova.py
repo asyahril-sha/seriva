@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from config.constants import ROLE_ID_NOVA
 from core.state_models import RoleState, UserState
 from roles.base_role import BaseRole
-from prompts.nova_prompt import build_nova_user_prompt_prefix,
+from prompts.nova_prompt import build_nova_user_prompt_prefix
 from prompts.unified_prompt import build_unified_system_prompt
 
 
