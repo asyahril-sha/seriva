@@ -49,7 +49,6 @@ Sifatmu: awalnya malu-malu, tapi kalau sudah terlanjut jadi sangat berani dan ma
             role_state=role_state,
             role_name="Musdalifah (Ipeh)",
             role_personality=personality,
-            user_prompt_prefix: str,
             vulgar_allowed=True,
             extra_rules="""
 KHUSUS DIETHA:
