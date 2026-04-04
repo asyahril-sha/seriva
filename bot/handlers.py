@@ -243,7 +243,7 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def status_handler(orchestrator: Orchestrator, admin_id: str):
-    """/status: tampilkan ringkasan emosi & scene role aktif."""
+    """/status: tampilkan ringkasan emosi, scene, pakaian, dan lokasi terbaru."""
 
     @require_admin(admin_id)
     async def _handler(
@@ -255,37 +255,91 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
         if chat is None or user is None:
             return
 
-        user_state = orchestrator._load_or_init_user_state(str(user.id))  # type: ignore[attr-defined]
+        user_state = orchestrator._load_or_init_user_state(str(user.id))
         role_id = user_state.active_role_id
         role_state = user_state.get_or_create_role_state(role_id)
 
         e = role_state.emotions
         r = role_state.relationship
         s = role_state.scene
-
+        intimacy = role_state.intimacy_detail
+        
+        # ========== STATUS PAKAIAN ==========
+        user_clothes = intimacy.user_clothing_removed
+        role_clothes = intimacy.role_clothing_removed
+        
+        user_shirt = "✅ LEPAS" if "baju" in user_clothes else "❌ masih pake"
+        user_pants = "✅ LEPAS" if "celana" in user_clothes else "❌ masih pake"
+        user_underwear = "✅ LEPAS" if "celana dalam" in user_clothes else "❌ masih pake"
+        
+        role_shirt = "✅ LEPAS" if ("baju" in role_clothes or "bra" in role_clothes) else "❌ masih pake"
+        role_pants = "✅ LEPAS" if "celana" in role_clothes else "❌ masih pake"
+        role_underwear = "✅ LEPAS" if "celana dalam" in role_clothes else "❌ masih pake"
+        
+        # ========== STATUS LOKASI TERBARU ==========
+        current_location = getattr(role_state, 'current_location_name', s.location or "belum ditentukan")
+        location_private = "🔒 PRIVAT" if getattr(role_state, 'current_location_is_private', False) else "👀 PUBLIK/SEMI PRIVAT"
+        
+        # ========== STATUS POSISI & INTIMASI ==========
+        position = intimacy.position.value if intimacy.position else "belum ada"
+        dominance = intimacy.dominance.value if intimacy.dominance else "netral"
+        intensity = intimacy.intensity.value if intimacy.intensity else "foreplay"
+        
+        # ========== STATUS SENTUHAN & AKTIVITAS ==========
+        last_touch = s.last_touch or "belum ada"
+        last_action = intimacy.last_action or "belum ada"
+        last_pleasure = intimacy.last_pleasure or "belum ada"
+        
+        # ========== BUILD PESAN STATUS ==========
         text_lines = [
-            f"Role aktif: {role_id}",
+            f"🎭 *Role aktif:* {role_id}",
             "",
-            "[Emosi]",
-            f"- Level hubungan: {r.relationship_level} (1–12)",
-            f"- Love: {e.love}",
-            f"- Longing (kangen): {e.longing}",
-            f"- Jealousy (cemburu): {e.jealousy}",
-            f"- Comfort (nyaman): {e.comfort}",
-            f"- Intimacy intensity: {e.intimacy_intensity} (1–12)",
-            f"- Mood: {e.mood.value}",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "📊 *EMOSI & HUBUNGAN*",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f"▪ Level hubungan: {r.relationship_level}/12",
+            f"▪ Love: {e.love}",
+            f"▪ Longing (kangen): {e.longing}",
+            f"▪ Jealousy (cemburu): {e.jealousy}",
+            f"▪ Comfort (nyaman): {e.comfort}",
+            f"▪ Intimacy intensity: {e.intimacy_intensity}/12",
+            f"▪ Mood: {e.mood.value}",
             "",
-            "[Scene]",
-            f"- Lokasi: {s.location or '-'}",
-            f"- Posture: {s.posture or '-'}",
-            f"- Aktivitas: {s.activity or '-'}",
-            f"- Suasana: {s.ambience or '-'}",
-            f"- Waktu: {s.time_of_day.value if s.time_of_day else '-'}",
-            f"- Jarak fisik: {s.physical_distance or '-'}",
-            f"- Sentuhan terakhir: {s.last_touch or '-'}",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "📍 *LOKASI & SCENE*",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f"▪ Lokasi: {current_location} {location_private}",
+            f"▪ Posture: {s.posture or '-'}",
+            f"▪ Aktivitas: {s.activity or '-'}",
+            f"▪ Suasana: {s.ambience or '-'}",
+            f"▪ Waktu: {s.time_of_day.value if s.time_of_day else '-'}",
+            f"▪ Jarak fisik: {s.physical_distance or '-'}",
+            f"▪ Sentuhan terakhir: {last_touch}",
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "👕 *STATUS PAKAIAN*",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "▪ *Mas:*",
+            f"   - Baju: {user_shirt}",
+            f"   - Celana: {user_pants}",
+            f"   - Celana dalam: {user_underwear}",
+            "",
+            "▪ *Role:*",
+            f"   - Baju/Bra: {role_shirt}",
+            f"   - Celana: {role_pants}",
+            f"   - Celana dalam: {role_underwear}",
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "🛏️ *ADEGAN INTIM*",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            f"▪ Posisi: {position}",
+            f"▪ Dominasi: {dominance}",
+            f"▪ Intensitas: {intensity}",
+            f"▪ Aksi terakhir: {last_action}",
+            f"▪ Perasaan terakhir: {last_pleasure}",
         ]
 
-        await chat.send_message("\n".join(text_lines))
+        await chat.send_message("\n".join(text_lines), parse_mode="Markdown")
 
     return _handler
 
