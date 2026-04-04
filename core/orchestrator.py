@@ -197,6 +197,63 @@ class Orchestrator:
 
         reply_text = self.llm.generate_text(messages)
 
+        # ========== BARU: Memory & Intimacy Updates ==========
+        from core.intimacy_progression import IntimacyProgressionEngine
+        from core.scene_engine import SceneEngine
+        from core.state_models import ConversationTurn, SceneTurn, SceneSequence
+        
+        # Update lokasi dari teks user
+        location_changed = SceneEngine.update_location_from_text(role_state, inp.text)
+        if location_changed:
+            logger.info(f"Location changed to: {role_state.current_location.name if role_state.current_location else 'unknown'}")
+        
+        # Update info user
+        role_state.update_user_info(inp.text)
+        
+        # Update intimacy detail
+        role_state.update_intimacy_from_text(inp.text, reply_text)
+        
+        # Deteksi perubahan pakaian
+        if "buka baju" in inp.text.lower() or "lepas baju" in inp.text.lower():
+            if "baju" not in role_state.intimacy_detail.user_clothing_removed:
+                role_state.intimacy_detail.user_clothing_removed.append("baju")
+        if "buka celana" in inp.text.lower() or "lepas celana" in inp.text.lower():
+            if "celana" not in role_state.intimacy_detail.user_clothing_removed:
+                role_state.intimacy_detail.user_clothing_removed.append("celana")
+        
+        # Simpan conversation turn ke memory
+        new_sequence = role_state.get_next_sequence(inp.text)
+        conv_turn = ConversationTurn(
+            timestamp=inp.timestamp,
+            user_text=inp.text[:500],
+            role_response=reply_text[:500],
+            intimacy_phase=role_state.intimacy_phase,
+            scene_sequence=new_sequence,
+            key_event=self._detect_key_event(inp.text, reply_text),
+        )
+        role_state.add_conversation_turn(conv_turn)
+        
+        # Simpan scene turn
+        scene_turn = SceneTurn(
+            timestamp=inp.timestamp,
+            sequence=new_sequence,
+            location=role_state.current_location.name if role_state.current_location else "unknown",
+            physical_state=role_state.intimacy_detail.position.value if role_state.intimacy_detail.position else "unknown",
+            user_action=inp.text[:100],
+            role_feeling=role_state.intimacy_detail.last_pleasure or role_state.last_feeling,
+        )
+        role_state.add_scene_turn(scene_turn)
+        
+        # Update fase intimacy
+        phase_changed = IntimacyProgressionEngine.update_phase_and_scene(role_state, inp.text, reply_text)
+        if phase_changed:
+            logger.info(f"User {inp.user_id} role {role_state.role_id} moved to {role_state.intimacy_phase}")
+        
+        # Update gaya respon dan perasaan
+        new_style = IntimacyProgressionEngine.get_response_style(role_state, inp.text)
+        role_state.last_response_style = new_style
+        role_state.last_feeling = IntimacyProgressionEngine.extract_feeling(role_state, inp.text, reply_text)
+
         # 9) Update waktu interaksi terakhir
         user_state.last_interaction_ts = inp.timestamp
 
@@ -981,6 +1038,25 @@ class Orchestrator:
             label="first_confession",
             description=description,
         )
+      
+      def _detect_key_event(self, user_text: str, response_text: str) -> Optional[str]:
+        """Deteksi event penting dari percakapan."""
+        text = (user_text + " " + response_text).lower()
+        
+        events = {
+            "first_touch": ["nyentuh", "tersentuh", "kena", "brsntuhan"],
+            "first_hug": ["peluk", "rangkul", "pelukan"],
+            "first_kiss": ["cium", "kiss", "ciuman"],
+            "sex_start": ["masuk", "ngewe", "sex", "kontol", "memek"],
+            "orgasm": ["climax", "keluar", "sampe", "habis"],
+            "location_change": ["apartemen", "rumah", "kamar", "kafe"],
+        }
+        
+        for event, keywords in events.items():
+            if any(kw in text for kw in keywords):
+                return event
+        
+        return None
 
 
 # ==============================
