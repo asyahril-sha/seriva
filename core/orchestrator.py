@@ -288,6 +288,10 @@ class Orchestrator:
         if any(kw in text_lower for kw in ["cdku udah lepas", "celana dalamku udah lepas", "aku udah buka cd"]):
             if "celana dalam" not in role_state.intimacy_detail.role_clothing_removed:
                 role_state.intimacy_detail.role_clothing_removed.append("celana dalam")
+
+        if any(kw in text_lower for kw in ["handuk", "ambil handuk", "kasih handuk", "pakai handuk"]):
+          role_state.handuk_tersedia = True
+          logger.info(f"🧺 Handuk diberikan ke role")
         
         # Simpan conversation turn ke memory
         new_sequence = role_state.get_next_sequence(inp.text)
