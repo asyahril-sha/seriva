@@ -477,6 +477,14 @@ class RoleState:
             return order[min(current_idx + 1, len(order)-1)]
         
         return order[min(current_idx, len(order)-1)]
+
+     # ========== TAMBAHKAN INI UNTUK LOKASI ==========
+    current_location_id: str = "ruang_tamu"
+    current_location_name: str = "Ruang Tamu"
+    current_location_desc: str = "Ruang tamu dengan sofa nyaman, TV menyala pelan"
+    current_location_is_private: bool = False
+    current_location_ambience: str = "suasana hangat, lampu tidak terlalu terang"
+    current_location_risk: str = "medium"  # low, medium, high
     
     # ========== BARU: Location Methods ==========
     
