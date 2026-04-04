@@ -1043,7 +1043,7 @@ class Orchestrator:
         )
       
       def _detect_key_event(self, user_text: str, response_text: str) -> Optional[str]:
-          """Deteksi event penting dari percakapan."""
+        """Deteksi event penting dari percakapan."""
           text = (user_text + " " + response_text).lower()
         
           events = {
