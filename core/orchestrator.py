@@ -65,6 +65,8 @@ from core.world_engine import WorldEngine
 from memory.milestones import MilestoneStore
 from roles.role_registry import get_role
 from core.intimacy_progression import IntimacyProgressionEngine
+from core.location_system import update_role_location, init_role_location, get_location_prompt_block
+from core.continuity_rules import get_continuity_rules_prompt
 
 
 # ==============================
