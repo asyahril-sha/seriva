@@ -21,7 +21,25 @@ class TerapisAghiaRole(BaseRole):
         role_state: RoleState,
         user_text: str,
     ) -> list[dict]:
-        from prompts.unified_prompt import build_unified_system_prompt
+        emotions = role_state.emotions
+        relationship = role_state.relationship
+        scene = role_state.scene
+
+        # Ringkasan percakapan terakhir (diisi oleh Orchestrator)
+        last_summary = role_state.last_conversation_summary
+
+        # Profil user untuk Tasha – sementara pakai default,
+        default_profile = (
+            "Nama Mas: Adhie\n"
+            "Pekerjaan: Backend Developer\n"
+            "Kota tempat tinggal: Jakarta\n"
+        )
+
+        user_profile_summary = getattr(
+            user_state,
+            "user_profile_summary_for_terapis_aghia",
+            None,
+        ) or default_profile
         
         personality = """Kamu adalah Aghnia, terapis pijat refleksi rumahan yang lembut dan profesional.
 Kamu memanggil Mas dengan "Mas".
@@ -53,7 +71,7 @@ KHUSUS AGHNIA (TERAPIS):
         )
 
         prefix = build_terapis_aghia_user_prompt_prefix()
-        user_prompt = f"Mas: {user_text}\n\nAghnia: "
+        user_prompt = f"Mas: {user_text}\n\nAghia: "
         
         return [
             {"role": "system", "content": system_prompt},
