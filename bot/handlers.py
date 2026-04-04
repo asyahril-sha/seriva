@@ -243,7 +243,7 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def status_handler(orchestrator: Orchestrator, admin_id: str):
-    """/status: tampilkan ringkasan emosi, scene, pakaian, dan lokasi terbaru."""
+    """/status: tampilkan ringkasan emosi, scene, pakaian, lokasi, dan handuk."""
 
     @require_admin(admin_id)
     async def _handler(
@@ -290,7 +290,11 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
         last_action = intimacy.last_action or "belum ada"
         last_pleasure = intimacy.last_pleasure or "belum ada"
         
-        # ========== BUILD PESAN STATUS (TANPA MARKDOWN) ==========
+        # ========== STATUS HANDUK ==========
+        handuk_tersedia = getattr(role_state, 'handuk_tersedia', False)
+        handuk_status = "✅ SEDANG DIPAKAI" if handuk_tersedia else "❌ TIDAK ADA/TIDAK DIPAKAI"
+        
+        # ========== BUILD PESAN STATUS ==========
         text_lines = [
             "🎭 ROLE AKTIF: " + role_id,
             "",
@@ -328,6 +332,11 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
             "   - Baju/Bra: " + role_shirt,
             "   - Celana: " + role_pants,
             "   - Celana dalam: " + role_underwear,
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "🧺 STATUS HANDUK",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "▪ " + handuk_status,
             "",
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
             "🛏️ ADEGAN INTIM",
