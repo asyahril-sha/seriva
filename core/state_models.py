@@ -485,6 +485,10 @@ class RoleState:
     current_location_is_private: bool = False
     current_location_ambience: str = "suasana hangat, lampu tidak terlalu terang"
     current_location_risk: str = "medium"  # low, medium, high
+
+    # ========== HANDUK ==========
+    handuk_tersedia: bool = False
+    handuk_dikasih: bool = False
     
     # ========== BARU: Location Methods ==========
     
