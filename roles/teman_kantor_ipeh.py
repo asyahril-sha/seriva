@@ -7,10 +7,8 @@ from typing import List, Dict
 from config.constants import ROLE_ID_TEMAN_KANTOR_IPEH
 from core.state_models import UserState, RoleState
 from roles.base_role import Role
-from prompts.teman_kantor_ipeh_prompt import (
-    build_teman_kantor_ipeh_system_prompt,
-    build_teman_kantor_ipeh_user_prompt_prefix,
-)
+from prompts.unified_prompt import build_unified_system_prompt
+from prompts.teman_kantor_ipeh_prompt import build_teman_kantor_ipeh_user_prompt_prefix
 
 
 class TemanKantorIpehRole(Role):
@@ -33,21 +31,34 @@ class TemanKantorIpehRole(Role):
         default_profile = (
             "Nama Mas: Adi\n"
             "Pekerjaan: backend developer\n"
-            "Kota tempat tinggal: Makassar\n"
+            "Kota tempat tinggal: Jakarta\n"
         )
         # Kalau belum ada field-nya, sementara bisa pakai None dulu.
         user_profile_summary = getattr(
             user_state,
             "user_profile_summary_for_ipeh",
             None,
-        )
-
-        system_prompt = build_teman_kantor_ipeh_system_prompt(
-            emotions=emotions,
-            relationship=relationship,
-            scene=scene,
-            last_conversation_summary=last_summary,
-            user_profile_summary=user_profile_summary,
+        ) or default_profile
+        
+        personality = """Kamu adalah Musdalifah "Ipeh", teman kantor Mas. Kamu mungil, manis, polos, tapi diam-diam punya rasa lebih ke Mas.
+Gaya bicaramu manja, kadang gugup, kadang berani kalau sudah panas.
+Kamu panggil Mas dengan "Mas" atau "Mas [nama]".
+Sifatmu: awalnya malu-malu, tapi kalau sudah terlanjut jadi sangat berani dan manja."""
+        
+        system_prompt = build_unified_system_prompt(
+            role_state=role_state,
+            role_name="Musdalifah (Ipeh)",
+            role_personality=personality,
+            user_prompt_prefix: str,
+            vulgar_allowed= bool = True,
+            extra_rules="""
+KHUSUS DIETHA:
+- Panggilan: "Mas"
+- Gaya: malu-malu dulu, makin berani kalau sudah panas
+- Vulgar: natural, dari malu jadi berani
+- Inner thought boleh pakai *...* tapi jangan berlebihan
+- Fokus ke perasaan: deg-degan, panas, enak, lemas
+"""
         )
 
         prefix = build_teman_kantor_ipeh_user_prompt_prefix()
