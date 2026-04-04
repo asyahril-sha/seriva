@@ -98,12 +98,19 @@ class ProbabilityEvent:
         "wall": "Bersandar di tembok",
         "car": "Di dalam mobil",
     }
-    
+
     # ===== PERUBAHAN LOKASI =====
     LOCATION_CHANGE_EVENTS = {
-        loc_id: f"Pindah ke {loc.name}" for loc_id, loc in LOCATIONS.items()
-    } if 'LOCATIONS' in dir() else {}
-    
+        "mobil": "Pindah ke Mobil",
+        "kamar_tidur": "Pindah ke Kamar Tidur",
+        "ruang_tamu": "Pindah ke Ruang Tamu",
+        "dapur": "Pindah ke Dapur",
+        "kafe": "Pindah ke Kafe",
+        "kantor": "Pindah ke Kantor",
+        "hotel": "Pindah ke Hotel",
+        "apartemen": "Pindah ke Apartemen",
+        "pantai": "Pindah ke Pantai",
+    }
     # ===== PERUBAHAN INTENSITAS =====
     INTENSITY_CHANGE_EVENTS = {
         "to_foreplay": "Mulai foreplay/pemanasan",
@@ -151,24 +158,42 @@ def get_continuity_rules_prompt() -> str:
         for rule in rules:
             rules_text.append(f"   - {rule}")
     
-    return f"""
-═══════════════════════════════════════════════════
+    return """
+═══════════════════════════════════════════════════════════════════
 🚨 ATURAN KONTINUITAS (WAJIB! DILANGGAR BERARTI ERROR)
-═══════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════════
 
-{chr(10).join(rules_text)}
+📌 CLOTHING (PAKAIAN):
+   - Pakaian yang sudah dilepas TIDAK AKAN KEMBALI dengan sendirinya
+   - Jika Mas sudah melepas baju, anggap Mas tetap TIDAK PAKAI BAJU
+   - JANGAN tiba-tiba bilang "pake baju dulu yuk" kalau sebelumnya sudah lepas
 
-═══════════════════════════════════════════════════
+📌 POSITION (POSISI):
+   - Posisi intim TIDAK AKAN BERUBAH dengan sendirinya
+   - Jika sedang cowgirl, JANGAN tiba-tiba jadi misionaris
+   - Posisi hanya berubah jika Mas bilang "ganti posisi"
+
+📌 LOCATION (LOKASI):
+   - Lokasi TIDAK AKAN BERUBAH dengan sendirinya
+   - Jika sedang di mobil, JANGAN bilang "di kamar"
+   - JANGAN bertanya "kita di mana?" kalau sudah jelas
+
+📌 ACTIVITY (AKTIVITAS):
+   - Aktivitas BERLANJUT, TIDAK RESET dari awal
+   - Jika sedang ngewe, JANGAN bilang "ayo mulai ya"
+
+📌 INTIMACY (INTENSITAS):
+   - Intensitas intimacy MENINGKAT, TIDAK MUNDUR
+   - Jika sudah VULGAR, JANGAN balik ke AWAL
+
+═══════════════════════════════════════════════════════════════════
 ✅ CONTOH RESPON YANG BENAR:
    - "Mas, kan tadi bajunya udah lepas..." (bukan "pake baju dulu yuk")
    - "Kita masih di mobil kan Mas?" (bukan "ayo ke mobil")
-   - "Posisinya masih kayak tadi ya, Mas di atas?" (bukan langsung ganti posisi)
-   - "Lanjutin ya Mas, kayak tadi..." (bukan "ayo mulai dari awal")
 
-❌ CONTOH RESPON YANG SALAH (JANGAN PERNAH LAKUKAN):
-   - "Mas, pake baju dulu yuk" (padahal tadi sudah lepas)
+❌ CONTOH RESPON YANG SALAH (JANGAN PERNAH!):
+   - "Mas, pake baju dulu yuk" (padahal sudah lepas)
    - "Ayo pindah ke kamar" (padahal masih di mobil)
-   - "Kita mulai lagi ya" (padahal sudah di tengah jalan)
-   - "Kita di mana ya?" (padahal sudah jelas dari konteks)
-═══════════════════════════════════════════════════
+   - "Kita mulai lagi ya" (padahal sudah di tengah)
+═══════════════════════════════════════════════════════════════════
 """
