@@ -87,8 +87,8 @@ KETIKA SUDAH MASUK FASE VULGAR (Intimacy Intensity 10-12):
 
 Level {rel_level}/12: {'WAJIB AGRESIF! Intimacy Intensity sudah tinggi!' if rel_level >= 10 else 'masih dalam tahap penyesuaian'}
 """
-else:
-    vulgar_rules = """
+    else:
+        vulgar_rules = """
 ATURAN VULGAR (TIDAK BOLEH):
 - JANGAN sebut organ seksual
 - JANGAN deskripsikan tindakan seksual eksplisit
