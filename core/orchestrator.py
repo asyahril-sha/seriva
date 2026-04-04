@@ -236,13 +236,58 @@ class Orchestrator:
         # Update intimacy detail
         role_state.update_intimacy_from_text(inp.text, reply_text)
         
-        # Deteksi perubahan pakaian
-        if "buka baju" in inp.text.lower() or "lepas baju" in inp.text.lower():
+        # ========== DETEKSI PERUBAHAN PAKAIAN (DIPERKUAT) ==========
+        text_lower = inp.text.lower()
+    
+        # UNTUK MAS (user) - mendeteksi Mas membuka pakaian sendiri
+        if any(kw in text_lower for kw in ["aku buka baju", "buka baju aku", "bajuku buka", "aku lepas baju"]):
             if "baju" not in role_state.intimacy_detail.user_clothing_removed:
                 role_state.intimacy_detail.user_clothing_removed.append("baju")
-        if "buka celana" in inp.text.lower() or "lepas celana" in inp.text.lower():
+                logger.info(f"👕 Mas buka baju")
+    
+        if any(kw in text_lower for kw in ["aku buka celana", "buka celana aku", "celanaku buka", "aku lepas celana"]):
             if "celana" not in role_state.intimacy_detail.user_clothing_removed:
                 role_state.intimacy_detail.user_clothing_removed.append("celana")
+                logger.info(f"👕 Mas buka celana")
+    
+        if any(kw in text_lower for kw in ["aku buka celana dalam", "buka cd aku", "cdku buka", "aku lepas cd", "aku buka cd"]):
+            if "celana dalam" not in role_state.intimacy_detail.user_clothing_removed:
+                role_state.intimacy_detail.user_clothing_removed.append("celana dalam")
+                logger.info(f"👕 Mas buka celana dalam")
+    
+        # UNTUK ROLE - Mas menyuruh role membuka pakaian
+        if any(kw in text_lower for kw in ["buka baju kamu", "buka bajumu", "lepas baju kamu", "buka baju lo", "bajumu buka"]):
+            if "baju" not in role_state.intimacy_detail.role_clothing_removed:
+                role_state.intimacy_detail.role_clothing_removed.append("baju")
+                logger.info(f"👕 Role buka baju (disuruh Mas)")
+    
+        if any(kw in text_lower for kw in ["buka bra kamu", "buka bra", "lepas bra", "buka bh"]):
+            if "bra" not in role_state.intimacy_detail.role_clothing_removed:
+                role_state.intimacy_detail.role_clothing_removed.append("bra")
+                logger.info(f"👕 Role buka bra")
+    
+        if any(kw in text_lower for kw in ["buka celana kamu", "buka celanamu", "lepas celana kamu", "celanamu buka"]):
+            if "celana" not in role_state.intimacy_detail.role_clothing_removed:
+                role_state.intimacy_detail.role_clothing_removed.append("celana")
+                logger.info(f"👕 Role buka celana (disuruh Mas)")
+    
+        if any(kw in text_lower for kw in ["buka celana dalam kamu", "buka cd kamu", "lepas cd kamu", "cdmu buka", "buka cd lo"]):
+            if "celana dalam" not in role_state.intimacy_detail.role_clothing_removed:
+                role_state.intimacy_detail.role_clothing_removed.append("celana dalam")
+                logger.info(f"👕 Role buka celana dalam")
+    
+        # DETEKSI PAKAIAN YANG SUDAH TERLEPAS (dari dialog role)
+        if any(kw in text_lower for kw in ["bajuku udah lepas", "bajuku sudah lepas", "aku udah buka baju"]):
+            if "baju" not in role_state.intimacy_detail.role_clothing_removed:
+                role_state.intimacy_detail.role_clothing_removed.append("baju")
+    
+        if any(kw in text_lower for kw in ["celanaku udah lepas", "celanaku sudah lepas", "aku udah buka celana"]):
+            if "celana" not in role_state.intimacy_detail.role_clothing_removed:
+                role_state.intimacy_detail.role_clothing_removed.append("celana")
+    
+        if any(kw in text_lower for kw in ["cdku udah lepas", "celana dalamku udah lepas", "aku udah buka cd"]):
+            if "celana dalam" not in role_state.intimacy_detail.role_clothing_removed:
+                role_state.intimacy_detail.role_clothing_removed.append("celana dalam")
         
         # Simpan conversation turn ke memory
         new_sequence = role_state.get_next_sequence(inp.text)
