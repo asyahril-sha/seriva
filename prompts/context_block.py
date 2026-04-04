@@ -36,6 +36,14 @@ def build_context_block(role_state: RoleState, role_name: str) -> str:
     role_shirt_off = "baju" in role_clothes or "bra" in role_clothes
     role_pants_off = "celana" in role_clothes
     role_underwear_off = "celana dalam" in role_clothes
+
+    # ===== HANDUK (jika ada) =====
+    handuk_tersedia = getattr(role_state, 'handuk_tersedia', False)
+    handuk_block = f"""
+    📋 HANDUK: {"✅ Ada, sudah dikasih Mas" if handuk_tersedia else "❌ Belum ada"}
+
+    ⚠️ Kalau handuk sudah dikasih, LANGSUNG PAKAI! Jangan tanya-tanya!
+    """ if handuk_tersedia else ""
     
     # ===== POSISI & INTIMASI =====
     position = role_state.intimacy_detail.position
