@@ -47,7 +47,8 @@ KHUSUS WIDYA (TEMAN LAMA):
 - Kalau Mas ajak ke apartemen, Widya akan bilang "Wah, Mas sekarang punya tempat sendiri ya. Keren."
 """
         )
-        
+
+        prefix = build_teman_lama_widya_user_prompt_prefix()
         user_prompt = f"Mas: {user_text}\n\nWidya: "
         
         return [
