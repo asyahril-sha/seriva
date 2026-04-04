@@ -39,11 +39,21 @@ def build_context_block(role_state: RoleState, role_name: str) -> str:
 
     # ===== HANDUK (jika ada) =====
     handuk_tersedia = getattr(role_state, 'handuk_tersedia', False)
-    handuk_block = f"""
-    📋 HANDUK: {"✅ Ada, sudah dikasih Mas" if handuk_tersedia else "❌ Belum ada"}
-
-    ⚠️ Kalau handuk sudah dikasih, LANGSUNG PAKAI! Jangan tanya-tanya!
-    """ if handuk_tersedia else ""
+    if handuk_tersedia:
+        handuk_block = """
+┌─────────────────────────────────────────────────────────────────┐
+│ 🧺 HANDUK                                                        │
+├─────────────────────────────────────────────────────────────────┤
+│   Status: ✅ Ada, sudah dikasih Mas                              │
+│                                                                 │
+│   ⚠️ KALAU HANDUK SUDAH DIKASIH, LANGSUNG PAKAI!                │
+│   - JANGAN tanya "Aku pake ini ya?"                             │
+│   - JANGAN malu-malu                                            │
+│   - LANGSUNG lilitkan di badan atau keringkan rambut            │
+└─────────────────────────────────────────────────────────────────┘
+"""
+    else:
+        handuk_block = ""
     
     # ===== POSISI & INTIMASI =====
     position = role_state.intimacy_detail.position
@@ -114,7 +124,7 @@ def build_context_block(role_state: RoleState, role_name: str) -> str:
 │     - Celana: {"✅ SUDAH LEPAS" if role_pants_off else "❌ masih pake"} │
 │     - Celana dalam: {"✅ SUDAH LEPAS" if role_underwear_off else "❌ masih pake"} │
 └─────────────────────────────────────────────────────────────────┘
-
+{handuk_block}
 ┌─────────────────────────────────────────────────────────────────┐
 │ 🛏️ ADEGAN INTIM SAAT INI                                        │
 ├─────────────────────────────────────────────────────────────────┤
