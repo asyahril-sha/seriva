@@ -1034,32 +1034,32 @@ class Orchestrator:
             "Malam ketika Mas pertama kali bilang sayang secara jelas ke Nova. "
             "Nova sangat tersentuh dan merasa hatinya dipeluk hangat waktu itu."
         )
-        self.milestones.add_milestone(
+            self.milestones.add_milestone(
             user_id=user_state.user_id,
             role_id=ROLE_ID_NOVA,
             timestamp=inp.timestamp,
             label="first_confession",
             description=description,
         )
-      
-      def _detect_key_event(self, user_text: str, response_text: str) -> Optional[str]:
+
+    def _detect_key_event(self, user_text: str, response_text: str) -> Optional[str]:
         """Deteksi event penting dari percakapan."""
-          text = (user_text + " " + response_text).lower()
-        
-          events = {
-              "first_touch": ["nyentuh", "tersentuh", "kena", "brsntuhan"],
-              "first_hug": ["peluk", "rangkul", "pelukan"],
-              "first_kiss": ["cium", "kiss", "ciuman"],
-              "sex_start": ["masuk", "ngewe", "sex", "kontol", "memek"],
-              "orgasm": ["climax", "keluar", "sampe", "habis"],
-              "location_change": ["apartemen", "rumah", "kamar", "kafe"],
-          }
-        
-          for event, keywords in events.items():
-              if any(kw in text for kw in keywords):
-                  return event
-        
-          return None
+        text = (user_text + " " + response_text).lower()
+
+        events = {
+            "first_touch": ["nyentuh", "tersentuh", "kena", "brsntuhan"],
+            "first_hug": ["peluk", "rangkul", "pelukan"],
+            "first_kiss": ["cium", "kiss", "ciuman"],
+            "sex_start": ["masuk", "ngewe", "sex", "kontol", "memek"],
+            "orgasm": ["climax", "keluar", "sampe", "habis"],
+            "location_change": ["apartemen", "rumah", "kamar", "kafe"],
+        }
+
+        for event, keywords in events.items():
+            if any(kw in text for kw in keywords):
+                return event
+
+        return None
 
 
 # ==============================
