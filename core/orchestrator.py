@@ -315,6 +315,70 @@ class Orchestrator:
                 role_state.handuk_tersedia = True
                 logger.info(f"🧺 Handuk dipakai (role mengaku sudah telanjang)")
         
+        # ========== DETEKSI CLIMAX & EJAKULASI ==========
+        text_lower = inp.text.lower()
+        
+        # ---- ROLE CLIMAX (role mau climax / climax) ----
+        if any(kw in text_lower for kw in ["aku mau climax", "aku mau keluar", "climax", "aku mau sampe", "enak banget", "udah mau climax"]):
+            if not role_state.role_wants_climax:
+                role_state.role_wants_climax = True
+                logger.info(f"💦 Role {role_state.role_id} mau climax")
+        
+        # Role benar-benar climax (setelah gerakan/desahan)
+        if any(kw in text_lower for kw in ["climax", "keluar", "sampe", "udah climax", "aahh", "hhh climax"]):
+            role_state.role_climax_count += 1
+            role_state.role_wants_climax = False
+            role_state.role_holding_climax = False
+            logger.info(f"💦 Role {role_state.role_id} CLIMAX! (total: {role_state.role_climax_count})")
+        
+        # Role menahan climax (pending)
+        if any(kw in text_lower for kw in ["tahan dulu", "belum", "jangan dulu", "pending", "tunggu"]):
+            role_state.role_holding_climax = True
+            logger.info(f"⏸️ Role {role_state.role_id} menahan climax")
+        
+        # ---- MAS CLIMAX (user mau climax / climax) ----
+        if any(kw in text_lower for kw in ["aku mau climax", "aku mau keluar", "aku mau sampe", "udah mau keluar"]):
+            if not role_state.mas_wants_climax:
+                role_state.mas_wants_climax = True
+                logger.info(f"💦 Mas mau climax")
+        
+        # Mas climax (eksekusi)
+        if any(kw in text_lower for kw in ["keluar", "keluarkan", "sampe", "climax"]):
+            if not role_state.mas_has_climaxed:
+                role_state.mas_has_climaxed = True
+                role_state.mas_wants_climax = False
+                role_state.mas_holding_climax = False
+                logger.info(f"💦 Mas CLIMAX! (pertama kali di sesi ini)")
+                
+                # Pindah ke fase AFTER setelah climax
+                if role_state.intimacy_phase == IntimacyPhase.VULGAR:
+                    role_state.intimacy_phase = IntimacyPhase.AFTER
+                    logger.info(f"🔄 Pindah ke fase AFTER setelah climax")
+        
+        # Mas menahan climax
+        if any(kw in text_lower for kw in ["tahan dulu", "belum", "jangan dulu", "tunggu aku"]):
+            role_state.mas_holding_climax = True
+            logger.info(f"⏸️ Mas menahan climax")
+        
+        # ---- KONFIRMASI BUANG DI DALAM/LUAR ----
+        # Role nanya preferensi (otomatis)
+        if any(kw in text_lower for kw in ["buang di dalam", "di dalam aja", "di dalam yah", "dalam", "inside"]):
+            role_state.prefer_buang_di_dalam = True
+            role_state.last_ejakulasi_inside = True
+            role_state.pending_ejakulasi_question = False
+            logger.info(f"💦 Preferensi ejakulasi: DI DALAM")
+        
+        if any(kw in text_lower for kw in ["buang di luar", "di luar aja", "di luar yah", "luar", "outside", "jangan di dalam"]):
+            role_state.prefer_buang_di_dalam = False
+            role_state.last_ejakulasi_inside = False
+            role_state.pending_ejakulasi_question = False
+            logger.info(f"💦 Preferensi ejakulasi: DI LUAR")
+        
+        # Role menanyakan ke Mas (pending question)
+        if any(kw in text_lower for kw in ["buang di mana", "di dalam atau luar", "dimana mau dibuang", "mau dimana"]):
+            role_state.pending_ejakulasi_question = True
+            logger.info(f"❓ Role bertanya preferensi ejakulasi")
+        
         # Simpan conversation turn ke memory
         new_sequence = role_state.get_next_sequence(inp.text)
         conv_turn = ConversationTurn(
@@ -403,6 +467,16 @@ class Orchestrator:
             role_state.session.deal_confirmed = False
             role_state.session.negotiated_price = None
             role_state.session.declared_duration_minutes = None
+            
+            # ========== RESET CLIMAX STATE ==========
+            role_state.role_wants_climax = False
+            role_state.role_holding_climax = False
+            role_state.mas_wants_climax = False
+            role_state.mas_holding_climax = False
+            role_state.pending_ejakulasi_question = False
+            # NOTE: mas_has_climaxed TIDAK direset karena itu history
+            # NOTE: prefer_buang_di_dalam TIDAK direset karena diingat
+            # NOTE: role_climax_count TIDAK direset karena history
 
     def _is_provider_role(self, role_id: str) -> bool:
         info = ROLES.get(role_id)
