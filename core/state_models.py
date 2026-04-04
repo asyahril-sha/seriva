@@ -478,7 +478,7 @@ class RoleState:
         
         return order[min(current_idx, len(order)-1)]
 
-     # ========== TAMBAHKAN INI UNTUK LOKASI ==========
+    # ========== LOKASI ==========
     current_location_id: str = "ruang_tamu"
     current_location_name: str = "Ruang Tamu"
     current_location_desc: str = "Ruang tamu dengan sofa nyaman, TV menyala pelan"
@@ -489,6 +489,27 @@ class RoleState:
     # ========== HANDUK ==========
     handuk_tersedia: bool = False
     handuk_dikasih: bool = False
+
+    # ========== CLIMAX & EJAKULASI ==========
+    # Role climax (role bisa climax berkali-kali)
+    role_climax_count: int = 0           # berapa kali role sudah climax
+    role_wants_climax: bool = False      # role sedang mau climax
+    role_holding_climax: bool = False    # role sedang menahan climax (pending)
+    
+    # Mas climax (hanya sekali, setelah itu pindah fase AFTER)
+    mas_has_climaxed: bool = False       # apakah Mas sudah climax
+    mas_wants_climax: bool = False       # Mas sedang mau climax
+    mas_holding_climax: bool = False     # Mas menahan climax (tunggu role)
+    
+    # Preferensi buang (diingat untuk sesi berikutnya)
+    prefer_buang_di_dalam: Optional[bool] = None  # True = di dalam, False = di luar
+    
+    # Status ejakulasi terakhir
+    last_ejakulasi_inside: bool = False   # True = di dalam, False = di luar
+    last_ejakulasi_timestamp: Optional[float] = None
+    
+    # Pending decision (role nanya dulu sebelum Mas climax)
+    pending_ejakulasi_question: bool = False  # role sudah nanya "buang di dalam/luar?"
     
     # ========== BARU: Location Methods ==========
     
@@ -684,4 +705,3 @@ class WorldState:
     def add_event(self, event: WorldEvent) -> None:
         self.events.append(event)
         # Bisa diberi batas max panjang list jika perlu di masa depan
-
