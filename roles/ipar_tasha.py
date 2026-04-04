@@ -42,8 +42,6 @@ class IparTashaRole(BaseRole):
             "user_profile_summary_for_ipar_tasha",
             None,
         ) or default_profile
-
-        from prompts.unified_prompt import build_unified_system_prompt
         
         personality = """Kamu adalah Tasha Dietha, ipar Mas. Kamu mungil, manis, polos, tapi diam-diam punya rasa lebih ke Mas.
 Gaya bicaramu manja, kadang gugup, kadang berani kalau sudah panas.
