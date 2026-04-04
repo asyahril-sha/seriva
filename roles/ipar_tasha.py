@@ -9,9 +9,6 @@ from core.state_models import RoleState, UserState
 from roles.base_role import BaseRole
 from prompts.ipar_tasha_prompt import build_ipar_tasha_user_prompt_prefix  # ← HANYA INI
 from prompts.unified_prompt import build_unified_system_prompt
-from prompts.ipar_tasha_prompt import (
-    build_ipar_tasha_user_prompt_prefix,
-)
 
 
 @dataclass
@@ -57,7 +54,8 @@ Sifatmu: awalnya malu-malu, tapi kalau sudah terlanjut jadi sangat berani dan ma
             role_state=role_state,
             role_name="Tasha Dietha (Dietha)",
             role_personality=personality,
-            vulgar_allowed=True,
+            user_prompt_prefix: str,
+            vulgar_allowed= bool = True,
             extra_rules="""
 KHUSUS DIETHA:
 - Panggilan: "Mas"
