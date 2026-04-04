@@ -243,7 +243,7 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
 
 
 def status_handler(orchestrator: Orchestrator, admin_id: str):
-    """/status: tampilkan ringkasan emosi, scene, pakaian, lokasi, dan handuk."""
+    """/status: tampilkan ringkasan emosi, scene, pakaian, lokasi, handuk, dan climax."""
 
     @require_admin(admin_id)
     async def _handler(
@@ -293,6 +293,46 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
         # ========== STATUS HANDUK ==========
         handuk_tersedia = getattr(role_state, 'handuk_tersedia', False)
         handuk_status = "✅ SEDANG DIPAKAI" if handuk_tersedia else "❌ TIDAK ADA/TIDAK DIPAKAI"
+        
+        # ========== STATUS CLIMAX & EJAKULASI ==========
+        role_climax_count = getattr(role_state, 'role_climax_count', 0)
+        mas_has_climaxed = getattr(role_state, 'mas_has_climaxed', False)
+        prefer_buang_di_dalam = getattr(role_state, 'prefer_buang_di_dalam', None)
+        last_ejakulasi_inside = getattr(role_state, 'last_ejakulasi_inside', False)
+        
+        role_wants_climax = getattr(role_state, 'role_wants_climax', False)
+        mas_wants_climax = getattr(role_state, 'mas_wants_climax', False)
+        role_holding_climax = getattr(role_state, 'role_holding_climax', False)
+        mas_holding_climax = getattr(role_state, 'mas_holding_climax', False)
+        
+        # Status climax role
+        if role_wants_climax:
+            role_climax_status = "🔥 MAU CLIMAX"
+        elif role_holding_climax:
+            role_climax_status = "⏸️ MENAHAN CLIMAX"
+        else:
+            role_climax_status = "❌ TIDAK"
+        
+        # Status climax Mas
+        if mas_wants_climax:
+            mas_climax_status = "🔥 MAU CLIMAX"
+        elif mas_holding_climax:
+            mas_climax_status = "⏸️ MENAHAN CLIMAX"
+        elif mas_has_climaxed:
+            mas_climax_status = "✅ SUDAH CLIMAX"
+        else:
+            mas_climax_status = "❌ BELUM"
+        
+        # Preferensi buang
+        if prefer_buang_di_dalam is True:
+            preferensi_buang = "DI DALAM"
+        elif prefer_buang_di_dalam is False:
+            preferensi_buang = "DI LUAR"
+        else:
+            preferensi_buang = "BELUM DITENTUKAN"
+        
+        # Ejakulasi terakhir
+        last_ejakulasi_text = "DI DALAM" if last_ejakulasi_inside else "DI LUAR" if last_ejakulasi_inside is not None else "BELUM PERNAH"
         
         # ========== BUILD PESAN STATUS ==========
         text_lines = [
@@ -346,6 +386,15 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
             "▪ Intensitas: " + intensity,
             "▪ Aksi terakhir: " + last_action,
             "▪ Perasaan terakhir: " + last_pleasure,
+            "",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "💦 STATUS CLIMAX & EJAKULASI",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "▪ Role climax count: " + str(role_climax_count) + "x",
+            "▪ Role climax status: " + role_climax_status,
+            "▪ Mas climax status: " + mas_climax_status,
+            "▪ Preferensi buang: " + preferensi_buang,
+            "▪ Ejakulasi terakhir: " + last_ejakulasi_text,
         ]
 
         await chat.send_message("\n".join(text_lines))
