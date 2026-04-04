@@ -43,10 +43,14 @@ from core.state_models import (
     TimeOfDay,
     UserState,
     WorldState,
+    ConversationTurn,
+    SceneTurn,
+    SceneSequence,
 )
 from core.world_engine import WorldEngine
 from memory.milestones import MilestoneStore
 from roles.role_registry import get_role
+from core.intimacy_progression import IntimacyProgressionEngine
 
 
 # ==============================
