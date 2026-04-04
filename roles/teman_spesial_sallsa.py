@@ -16,12 +16,6 @@ class TemanSpesialSallsaRole(BaseRole):
     role_id: str = ROLE_ID_TEMAN_SPESIAL_SALLSA
 
     def build_messages(
-        class IparTashaRole(BaseRole):
-    """Role Dietha: ipar yang dekat dan terlarang."""
-
-    role_id: str = ROLE_ID_IPAR_TASHA
-
-    def build_messages(
         self,
         user_state: UserState,
         role_state: RoleState,
