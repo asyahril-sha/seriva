@@ -290,15 +290,30 @@ class Orchestrator:
                 role_state.intimacy_detail.role_clothing_removed.append("celana dalam")
 
         # ========== DETEKSI HANDUK ==========
-        # Memberikan handuk
-        if any(kw in text_lower for kw in ["handuk", "ambil handuk", "kasih handuk", "pakai handuk"]):
-            role_state.handuk_tersedia = True
-            logger.info(f"🧺 Handuk diberikan ke role")
+        # Memberikan handuk (tidak langsung dipakai, harus lepas baju dulu)
+        if any(kw in text_lower for kw in ["handuk", "ambil handuk", "kasih handuk", "nih handuk"]):
+            # JANGAN langsung set handuk_tersedia = True
+            # Role harus lepas baju dulu
+            role_state.handuk_dikasih = True  # tandai handuk sudah diberikan
+            logger.info(f"🧺 Handuk diberikan ke role, menunggu role lepas baju")
 
         # Melepas handuk
         if any(kw in text_lower for kw in ["lepas handuk", "buka handuk", "lepaskan handuk", "udah gak usah pake handuk"]):
             role_state.handuk_tersedia = False
+            role_state.handuk_dikasih = False
             logger.info(f"🧺 Handuk dilepas oleh role")
+
+        # Deteksi role sudah lepas baju (dari perintah Mas)
+        if any(kw in text_lower for kw in ["buka baju", "buka bra", "buka celana", "buka cd", "lepas baju", "lepas bra", "lepas celana", "lepas cd"]):
+            if getattr(role_state, 'handuk_dikasih', False):
+                role_state.handuk_tersedia = True
+                logger.info(f"🧺 Handuk dipakai setelah role telanjang")
+        
+        # Deteksi dari dialog role (role mengaku sudah lepas baju)
+        if any(kw in text_lower for kw in ["bajuku udah lepas", "udah lepas tadi", "aku udah buka", "telanjang"]):
+            if getattr(role_state, 'handuk_dikasih', False):
+                role_state.handuk_tersedia = True
+                logger.info(f"🧺 Handuk dipakai (role mengaku sudah telanjang)")
         
         # Simpan conversation turn ke memory
         new_sequence = role_state.get_next_sequence(inp.text)
