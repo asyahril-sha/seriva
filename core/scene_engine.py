@@ -208,3 +208,81 @@ class SceneEngine:
             scene.physical_distance = "sebelahan"  # lebih netral tapi masih dekat
         scene.last_touch = ""
 
+    # ========== BARU: Location Detection Methods ==========
+    
+    LOCATION_KEYWORDS = {
+        "apartemen_mas": {
+            "keywords": ["apartemen", "apartemenku", "apartemen mas", "flat", "unit"],
+            "type": "private",
+            "owner": "Mas",
+            "notes": "tempat tinggal Mas"
+        },
+        "rumah_kakak": {
+            "keywords": ["rumah kakak", "rumah keluarga", "rumah ortu", "rumah mertua"],
+            "type": "private",
+            "owner": "keluarga",
+            "notes": "bukan tempat yang aman untuk berduaan"
+        },
+        "kafe": {
+            "keywords": ["kafe", "cafe", "coffee shop", "starbucks"],
+            "type": "public",
+            "notes": "tempat umum, harus jaga sikap"
+        },
+        "kantor": {
+            "keywords": ["kantor", "office", "ruang kerja", "meeting room"],
+            "type": "semi_public",
+            "notes": "jam kerja, ada CCTV"
+        },
+        "hotel": {
+            "keywords": ["hotel", "penginapan", "inn", "lodging"],
+            "type": "private",
+            "notes": "netral, aman untuk berduaan"
+        },
+        "mobil": {
+            "keywords": ["mobil", "car", "mobil mas", "parkiran"],
+            "type": "semi_private",
+            "notes": "ruang terbatas, bisa ketahuan orang lewat"
+        },
+    }
+    
+    @classmethod
+    def detect_location_from_text(cls, text: str):
+        """Deteksi lokasi dari teks user."""
+        from core.state_models import LocationContext
+        
+        text_lower = text.lower()
+        
+        for loc_id, info in cls.LOCATION_KEYWORDS.items():
+            if any(kw in text_lower for kw in info["keywords"]):
+                return LocationContext(
+                    name=loc_id.replace("_", " ").title(),
+                    type=info["type"],
+                    owner=info.get("owner"),
+                    notes=info.get("notes"),
+                )
+        
+        if "kamar" in text_lower:
+            if "kamar mas" in text_lower or "kamarku" in text_lower:
+                return LocationContext(name="Kamar Mas", type="private", owner="Mas")
+            elif "kamar dietha" in text_lower:
+                return LocationContext(name="Kamar Dietha", type="private", owner="Dietha")
+            else:
+                return LocationContext(name="Kamar", type="private", owner="tidak jelas")
+        
+        return None
+    
+    @classmethod
+    def update_location_from_text(cls, role_state, user_text: str) -> bool:
+        """Update lokasi berdasarkan teks user. Return True jika berubah."""
+        from core.state_models import LocationContext
+        
+        new_location = cls.detect_location_from_text(user_text)
+        if not new_location:
+            return False
+        
+        if role_state.current_location:
+            if role_state.current_location.name == new_location.name:
+                return False
+        
+        role_state.set_location(new_location)
+        return True
