@@ -96,7 +96,12 @@ def main() -> None:
     )
 
     # Setup Telegram Application
-    app = Application.builder().token(bot_token).build()
+    app = (
+        Application.builder()
+        .token(bot_token)
+        .concurrent_updates(False)
+    .build()
+    )
 
     # Command handlers
     app.add_handler(CommandHandler("start", start_handler(orchestrator, admin_id)))
@@ -141,7 +146,10 @@ def main() -> None:
     )
 
     logger.info("SERIVA Telegram bot starting (polling mode)...")
-    app.run_polling()
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=["message"]
+    )
 
 
 if __name__ == "__main__":
