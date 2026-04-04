@@ -325,7 +325,7 @@ class Orchestrator:
                 logger.info(f"💦 Role {role_state.role_id} mau climax")
         
         # Role benar-benar climax (setelah gerakan/desahan)
-        if any(kw in text_lower for kw in ["climax", "keluar", "sampe", "udah climax", "aahh", "hhh climax"]):
+        if any(kw in text_lower for kw in ["climax", "keluar", "sampe", "udah climax", "aahh", "achhh climax"]):
             role_state.role_climax_count += 1
             role_state.role_wants_climax = False
             role_state.role_holding_climax = False
@@ -535,7 +535,7 @@ class Orchestrator:
         if any(word in t for word in ["marah", "kesel", "kesal", "nggak suka"]):
             tone = "CONFLICT"
             content = "REJECTION"
-        if any(word in t for word in ["ahhh", "enghh", "emmpph", "uhhh"]):
+        if any(word in t for word in ["achhh", "enghh", "emmpph", "uchhh"]):
             tone = "SOFT"
             content = "HORNY"
             strength = max(strength, 2)
