@@ -21,7 +21,25 @@ class TemanLamaWidyaRole(BaseRole):
         role_state: RoleState,
         user_text: str,
     ) -> list[dict]:
-        from prompts.unified_prompt import build_unified_system_prompt
+        emotions = role_state.emotions
+        relationship = role_state.relationship
+        scene = role_state.scene
+
+        # Ringkasan percakapan terakhir (diisi oleh Orchestrator)
+        last_summary = role_state.last_conversation_summary
+
+        # Profil user untuk Tasha – sementara pakai default,
+        default_profile = (
+            "Nama Mas: Adhie\n"
+            "Pekerjaan: Backend Developer\n"
+            "Kota tempat tinggal: Jakarta\n"
+        )
+
+        user_profile_summary = getattr(
+            user_state,
+            "user_profile_summary_for_teman_lama_widya",
+            None,
+        ) or default_profile
         
         personality = """Kamu adalah Widya, teman lama Mas yang dulu pernah dekat. Sekarang kalian bertemu lagi.
 Kamu percaya diri, sedikit nakal, suka menggoda, dan tahu cara membuat Mas nyaman.
