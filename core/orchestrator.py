@@ -289,9 +289,16 @@ class Orchestrator:
             if "celana dalam" not in role_state.intimacy_detail.role_clothing_removed:
                 role_state.intimacy_detail.role_clothing_removed.append("celana dalam")
 
+        # ========== DETEKSI HANDUK ==========
+        # Memberikan handuk
         if any(kw in text_lower for kw in ["handuk", "ambil handuk", "kasih handuk", "pakai handuk"]):
-          role_state.handuk_tersedia = True
-          logger.info(f"🧺 Handuk diberikan ke role")
+            role_state.handuk_tersedia = True
+            logger.info(f"🧺 Handuk diberikan ke role")
+
+        # Melepas handuk
+        if any(kw in text_lower for kw in ["lepas handuk", "buka handuk", "lepaskan handuk", "udah gak usah pake handuk"]):
+            role_state.handuk_tersedia = False
+            logger.info(f"🧺 Handuk dilepas oleh role")
         
         # Simpan conversation turn ke memory
         new_sequence = role_state.get_next_sequence(inp.text)
