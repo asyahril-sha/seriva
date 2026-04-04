@@ -1034,7 +1034,7 @@ class Orchestrator:
             "Malam ketika Mas pertama kali bilang sayang secara jelas ke Nova. "
             "Nova sangat tersentuh dan merasa hatinya dipeluk hangat waktu itu."
         )
-            self.milestones.add_milestone(
+        self.milestones.add_milestone(
             user_id=user_state.user_id,
             role_id=ROLE_ID_NOVA,
             timestamp=inp.timestamp,
