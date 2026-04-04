@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from config.constants import ROLE_ID_IPAR_TASHA
 from core.state_models import RoleState, UserState
 from roles.base_role import BaseRole
+from prompts.ipar_tasha_prompt import build_ipar_tasha_user_prompt_prefix  # ← HANYA INI
+from prompts.unified_prompt import build_unified_system_prompt
 from prompts.ipar_tasha_prompt import (
     build_ipar_tasha_user_prompt_prefix,
 )
