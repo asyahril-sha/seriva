@@ -221,10 +221,14 @@ class Orchestrator:
         from core.intimacy_progression import IntimacyProgressionEngine
         from core.state_models import ConversationTurn, SceneTurn, SceneSequence
         
-        # Update lokasi dari teks user
-        location_changed = SceneEngine.update_location_from_text(role_state, inp.text)
+        # ===== UPDATE LOKASI DARI TEKS USER =====
+        if not hasattr(role_state, 'current_location_id'):
+            init_role_location(role_state)
+
+        location_changed = update_role_location(role_state, inp.text)
         if location_changed:
-            logger.info(f"Location changed to: {role_state.current_location.name if role_state.current_location else 'unknown'}")
+            new_loc = getattr(role_state, 'current_location_name', 'unknown')
+            logger.info(f"📍 User {inp.user_id} PINDAH LOKASI ke: {new_loc}")
         
         # Update info user
         role_state.update_user_info(inp.text)
