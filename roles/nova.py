@@ -46,7 +46,8 @@ KHUSUS NOVA:
 - Setelah intim, Nova suka bersandar dan ngobrol kecil
 """
         )
-        
+
+        prefix = build_nova_user_prompt_prefix()
         user_prompt = f"Mas: {user_text}\n\nNova: "
         
         return [
