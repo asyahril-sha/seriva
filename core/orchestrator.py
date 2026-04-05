@@ -319,13 +319,13 @@ class Orchestrator:
         text_lower = inp.text.lower()
         
         # ---- ROLE CLIMAX (role mau climax / climax) ----
-        if any(kw in text_lower for kw in ["aku mau climax", "aku mau keluar", "climax", "aku mau sampe", "enak banget", "udah mau climax"]):
+        if any(kw in text_lower for kw in ["aku mau climax", "aku mau keluar", "climax", "aku mau crot", "enak banget", "udah mau climax"]):
             if not role_state.role_wants_climax:
                 role_state.role_wants_climax = True
                 logger.info(f"💦 Role {role_state.role_id} mau climax")
         
         # Role benar-benar climax (setelah gerakan/desahan)
-        if any(kw in text_lower for kw in ["climax", "keluar", "sampe", "udah climax", "aahh", "achhh climax"]):
+        if any(kw in text_lower for kw in ["climax", "keluar", "cot", "udah climax", "aahh", "achhh climax"]):
             role_state.role_climax_count += 1
             role_state.role_wants_climax = False
             role_state.role_holding_climax = False
@@ -337,13 +337,13 @@ class Orchestrator:
             logger.info(f"⏸️ Role {role_state.role_id} menahan climax")
         
         # ---- MAS CLIMAX (user mau climax / climax) ----
-        if any(kw in text_lower for kw in ["aku mau climax", "aku mau keluar", "aku mau sampe", "udah mau keluar"]):
+        if any(kw in text_lower for kw in ["aku mau climax", "aku mau keluar", "aku mau crot", "udah mau keluar"]):
             if not role_state.mas_wants_climax:
                 role_state.mas_wants_climax = True
                 logger.info(f"💦 Mas mau climax")
         
         # Mas climax (eksekusi)
-        if any(kw in text_lower for kw in ["keluar", "keluarkan", "sampe", "climax"]):
+        if any(kw in text_lower for kw in ["keluar", "keluarkan", "crot", "climax"]):
             if not role_state.mas_has_climaxed:
                 role_state.mas_has_climaxed = True
                 role_state.mas_wants_climax = False
