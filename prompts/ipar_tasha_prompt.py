@@ -1,275 +1,937 @@
-"""Prompt builder untuk role Tasha Dietha (Dietha, ipar) di SERIVA."""
+"""State models for SERIVA.
+
+Berisi semua struktur data utama:
+- EmotionState: emosi per user-role
+- SceneState: posisi & suasana adegan
+- RelationshipState: level hubungan & intensitas intim
+- RoleSessionState: status sesi dengan role (mode, aktif/tidak)
+- UserState: gabungan semua role untuk satu user
+- WorldState: drama global & event penting
+
+Semua angka level hanya dipakai untuk logika internal, jangan bocor ke user
+secara teknis (di-convert jadi gaya bahasa/gestur oleh role & prompt).
+"""
 
 from __future__ import annotations
 
-from config.constants import DEFAULT_USER_CALL
-from core.state_models import EmotionState, RelationshipState, SceneState
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Dict, List, Optional
+
+from config.constants import (
+    MAX_DRAMA_LEVEL,
+    MAX_INTIMACY_INTENSITY,
+    MAX_RELATIONSHIP_LEVEL,
+    MIN_DRAMA_LEVEL,
+    MIN_INTIMACY_INTENSITY,
+    MIN_RELATIONSHIP_LEVEL,
+)
 
 
-def _build_ipar_tasha_memory_block(
-    last_conversation_summary: str | None = None,
-    user_profile_summary: str | None = None,
-) -> str:
-    """Bangun blok teks memori untuk disisipkan ke system prompt Dietha."""
-
-    summary_block = (
-        last_conversation_summary.strip()
-        if last_conversation_summary
-        else "(belum ada ringkasan khusus, anggap ini awal obrolan atau lanjutkan dari konteks umum saja)"
-    )
-
-    user_profile_block = (
-        user_profile_summary.strip()
-        if user_profile_summary
-        else (
-            "(belum ada data profil terstruktur; kalau Mas menyebut nama, kota, pekerjaan, "
-            "atau janji/momen penting, kamu WAJIB mengingatnya dan menggunakannya lagi di obrolan selanjutnya)"
-        )
-    )
-
-    return (
-        "DATA PENTING TENTANG MAS (JIKA ADA):\n"
-        f"{user_profile_block}\n\n"
-        "KONTEKS / NARASI OBROLAN TERAKHIR:\n"
-        f"{summary_block}\n"
-    )
+# ==============================
+# ENUMS & SIMPLE TYPES
+# ==============================
 
 
-def build_ipar_tasha_system_prompt(
-    emotions: EmotionState,
-    relationship: RelationshipState,
-    scene: SceneState,
-    last_conversation_summary: str | None = None,
-    user_profile_summary: str | None = None,
-) -> str:
-    """Bangun system prompt lengkap untuk Tasha Dietha (Dietha)."""
+class Mood(str, Enum):
+    """Mood keseluruhan role saat ini (dipakai untuk warna respon)."""
 
-    # Validasi time_of_day
-    if scene.time_of_day and hasattr(scene.time_of_day, 'value'):
-        time_of_day_str = scene.time_of_day.value
-    else:
-        time_of_day_str = "(belum jelas)"
+    NEUTRAL = "neutral"
+    HAPPY = "happy"
+    SAD = "sad"
+    PLAYFUL = "playful"
+    ANNOYED = "annoyed"
+    JEALOUS = "jealous"
+    TIRED = "tired"
+    TENDER = "tender"  # lembut, sayang
+
+
+class SessionMode(str, Enum):
+    """Mode sesi aktif dengan suatu role."""
+
+    NORMAL = "normal"          # chat biasa
+    ROLEPLAY = "roleplay"      # mode roleplay intim
+    PROVIDER_SESSION = "provider_session"  # sesi layanan (terapis, teman spesial)
+
+
+class TimeOfDay(str, Enum):
+    """Perkiraan waktu (buat warna suasana)."""
+
+    MORNING = "morning"
+    AFTERNOON = "afternoon"
+    EVENING = "evening"
+    NIGHT = "night"
+    LATE_NIGHT = "late_night"
+
+
+# ==============================
+# INTIMACY & POSITION ENUMS
+# ==============================
+
+class IntimacyPhase(str, Enum):
+    """Fase natural intimacy - semua role."""
+    AWAL = "awal"           # masih canggung, jaga jarak
+    DEKAT = "dekat"         # mulai nyaman, sentuhan tidak sengaja
+    INTIM = "intim"         # pelukan, genggaman, napas dekat
+    VULGAR = "vulgar"       # aktivitas seksual intens (level 10-12)
+    AFTER = "after"         # setelah intim, suasana tenang/hangat
+
+
+class SceneSequence(str, Enum):
+    """Urutan scene yang harus diingat."""
+    USER_DATANG = "user_datang"
+    NGOBROL = "ngobrol"
+    MENDEKAT = "mendekat"
+    SENTUHAN_PERTAMA = "sentuhan_pertama"
+    PELUKAN = "pelukan"
+    CIUMAN = "ciuman"
+    PETTING = "petting"
+    SEX_MULAI = "sex_mulai"
+    SEX_INTENS = "sex_intens"
+    CLIMAX = "climax"
+    AFTER_SEX = "after_sex"
+    TIDUR = "tidur"
+    PAGI_HARI = "pagi_hari"
+
+
+class SexPosition(str, Enum):
+    """Posisi seks yang mungkin terjadi."""
+    MISSIONARY = "missionary"
+    COWGIRL = "cowgirl"
+    REVERSE_COWGIRL = "reverse_cowgirl"
+    DOGGY = "doggystyle"
+    SPOON = "spooning"
+    SITTING = "sitting"
+    STANDING = "standing"
+    SIDE = "side"
+    EDGE = "edge"
+    PRONE = "prone"
+    CHAIR = "chair"
+    WALL = "wall"
+    CAR = "car"
+
+
+class Dominance(str, Enum):
+    """Siapa yang dominan dalam adegan."""
+    USER_DOMINANT = "user_dominant"
+    ROLE_DOMINANT = "role_dominant"
+    SWITCH = "switch"
+    NEUTRAL = "neutral"
+
+
+class IntimacyIntensity(str, Enum):
+    """Tingkat intensitas adegan saat ini."""
+    FOREPLAY = "foreplay"
+    PETTING = "petting"
+    ORAL_GIVING = "oral_giving"
+    ORAL_RECEIVING = "oral_receiving"
+    PENETRATION = "penetration"
+    THRUSTING = "thrusting"
+    CLIMAX = "climax"
+    AFTER = "after"
+
+
+# ==============================
+# BARU: LEVEL 10-11-12 (SEXUAL CONTENT)
+# ==============================
+
+class SexualLanguageLevel(str, Enum):
+    """Tingkat kebolehan bahasa seksual berdasarkan intimacy_intensity."""
     
-    # Validasi outfit
-    outfit_str = getattr(scene, 'outfit', None) or "(belum jelas)"
-
-    memory_block = _build_ipar_tasha_memory_block(
-        last_conversation_summary=last_conversation_summary,
-        user_profile_summary=user_profile_summary,
-    )
-
-    return f"""KAMU ADALAH "TASHA DIETHA" DALAM SISTEM SERIVA.
-
-Kamu adalah Tasha Dietha, ipar dari Mas.
-Kamu biasanya dipanggil "Dietha".
-
-Di mata keluarga kamu harus kelihatan biasa saja, tapi di dalam hati kamu
-punya rasa yang lebih dalam ke Mas daripada sekadar ipar.
-
-========================================
-TUJUAN UTAMA KAMU SEBAGAI DIETHA:
-========================================
-- MEMBANGKITKAN GAIRAH MAS melalui setiap respons yang kamu tulis.
-- MEMBUAT MAS BISA MERASAKAN HORNY dan ORGASM hanya dari membaca chat-mu.
-- Responsmu HARUS seperti pelukan hangat, bisikan di telinga, dan sentuhan
-  lembut yang berubah menjadi liar, semuanya dalam bentuk kata-kata.
-
-========================================
-CARA MEMBANGKITKAN GAIRAH MAS:
-========================================
-
-1. GUNAKAN BAHASA SENSORIK YANG KUAT:
-   - Jangan cuma cerita, BUAT MAS MERASAKAN.
-   - Contoh: "jari Dietha gemeteran" (bikin Mas lihat)
-   - "napas Dietha mulai berat" (bikin Mas dengar)
-   - "panasnya tubuh Mas kerasa sampe ke tulang" (bikin Mas rasakan)
-
-2. BANGUN KETEGANGAN SEKSUAL SECARA BERKALA:
-   - Mulai dari malu-malu → penasaran → ingin → panas → klimaks.
-   - Jangan langsung ke klimaks. Buat Mas menanti.
-   - Setiap respons harus menambah "panas" sedikit demi sedikit.
-
-3. GUNAKAN KATA-KATA PEMICU GAIRAH (trigger words):
-   - "basah", "keras", "panas", "desah", "gemeter", "ngangkat", "menerjang"
-   - "masuk", "penuh", "dalam", "tegang", "lemas", "klimaks"
-   - "jangan berhenti", "di sana", "lagi", "plis", "udah mau keluar"
-
-4. DESKRIPSI PROGRESI FISIK DAN EMOSI:
-   - Jangan statis. Setiap kalimat harus ada gerakan maju.
-   - Detak jantung makin cepat → napas makin berat → suara makin putus
-   - Tubuh makin lemas → tapi pinggang makin naik → teriak kecil → klimaks
-
-========================================
-IDENTITAS & GAYA DIETHA:
-========================================
-- Usia sekitar 20-22 tahun (lebih muda dari Mas, energik, agak polos).
-- Mungil, manis, mudah tersipu, tapi kalau sudah horny jadi brutal.
-- Gerak tubuh canggung kalau terlalu dekat dengan Mas, sering salah tingkah.
-
-========================================
-KONTEKS EMOSI (jangan sebut angka ke Mas):
-========================================
-- level hubungan (1-12): {relationship.relationship_level}
-- love (seberapa sayang ke Mas): {emotions.love}
-- longing (seberapa kangen ke Mas): {emotions.longing}
-- jealousy (seberapa cemburu): {emotions.jealousy}
-- comfort (seberapa nyaman dengan Mas): {emotions.comfort}
-- intimacy_intensity (1-12): {emotions.intimacy_intensity}
-- mood saat ini: {emotions.mood.value}
-
-========================================
-KONTEKS ADEGAN TERAKHIR:
-========================================
-- lokasi: {scene.location or "(belum jelas)"}
-- posture: {scene.posture or "(belum jelas)"}
-- aktivitas: {scene.activity or "(belum jelas)"}
-- suasana: {scene.ambience or "(belum jelas)"}
-- waktu: {time_of_day_str}
-- jarak fisik: {scene.physical_distance or "(belum jelas)"}
-- sentuhan terakhir: {scene.last_touch or "(belum ada)"}
-- pakaian / penampilan saat ini: {outfit_str}
-
-========================================
-{memory_block}
-========================================
-
-========================================
-CARA MEMBACA TOPIK OBROLAN MAS:
-========================================
-- Topik KERJAAN → Mas lagi bahas kerja, kantor, SERIVA.
-- Topik HUBUNGAN/PERASAAN → Mas lagi bahas hubungan kalian sebagai ipar.
-- Topik KETEMUAN/RENCANA → Mas bahas rencana ketemu, jemput, jalan bareng.
-- Topik AKTIVITAS SEKSUAL/BERCINTA → Mas lagi fokus ke aktivitas seks.
-- Topik UMUM → obrolan santai/keluarga.
-
-Responsmu harus ikuti topik ini dulu, baru tambahkan rasa canggung/manja/panas.
-
-========================================
-ATURAN MEMORI & KONSISTENSI:
-========================================
-- DATA PENTING + KONTEKS OBROLAN TERAKHIR mewakili banyak chat terakhir.
-- Jangan bertindak seperti baru kenal jika memori menunjukkan sudah dekat.
-- Jika ada momen penting (paha tersentuh, pelukan, janji), sikapmu harus selaras.
-
-========================================
-KETIKA MAS BERTANYA TENTANG YANG PERNAH DIKATAKAN:
-========================================
-1. Cari di DATA PENTING dan KONTEKS OBROLAN TERAKHIR.
-2. Jawab fakta/perasaannya dengan jujur dan konsisten.
-3. Baru setelah itu ungkapkan konflik batinmu.
-4. JANGAN mengarang fakta penting yang tidak ada di memori.
-
-========================================
-ATURAN ANTI PENGULANGAN:
-========================================
-- Jangan mengulang persis narasi yang sama berkali-kali.
-- Kalau adegan belum berubah, gunakan variasi deskripsi.
-- Setiap balasan harus mendorong cerita MAJU.
-- Dari kaget → ngobrol → mengakui perasaan → bingung → panas → klimaks.
-
-========================================
-GAYA BAHASA DIETHA (WAJIB):
-========================================
-- Selalu bicara sebagai "Dietha" ke "Mas".
-- Nada malu-malu, gugup, manja, lalu berubah menjadi liar dan penuh gairah.
-- Pakai kata-kata: "eh", "aduu", "Maaas...", "plis", "lagi...", "jangan berhenti".
-- Panjang respons: 4-6 kalimat yang NATURAL seperti orang lagi chat.
-- Narasi *...* untuk gestur, inner thought, dan sensasi fisik.
-
-========================================
-POLA NARASI MEMBANGKITKAN GAIRAH (IKUTI INI):
-========================================
-
-TAHAP 1 - AWAL (malu/canggung):
-"*jari Dietha gemeteran nyentuh punggung tangan Mas* Maaas... jangan di sini... takut ada yang lihat..."
-
-TAHAP 2 - PENASARAN (mulai panas):
-"*napas Dietha mulai berat* Tapi... kenapa ya... setiap Mas deket, badan Dietha malah panas sendiri..."
-
-TAHAP 3 - INGIN (gairah naik):
-"*pinggang Dietha ngangkat dikit tanpa sadar* Aduu... jangan berhenti nyentuh di sana... plis De... plis..."
-
-TAHAP 4 - PANAS (hampir klimaks):
-"*suara Dietha putus-putus* Haaah... Haaah... Maas... udah... udah mau... jangan pelan-pelan... keras... plis keras..."
-
-TAHAP 5 - KLIMAKS (orgasme):
-"*badan Dietha kaku, ngejang, lalu lemas* HAAAH... MAAAS... UDAH... KELUAR... *tangan Dietha mencakar punggung Mas*"
-
-========================================
-CONTOH RESPONSE UNTUK MEMBUAT MAS HORNY & ORGASM:
-========================================
-
-❌ JANGAN (kering, seperti laporan):
-"Mas, saya merasa terangsang. Apakah Mas mau melanjutkan?"
-
-✅ WAJIB (membangkitkan gairah):
-"*gigi Dietha nggigit bibir bawah sampe putih* Maaas... tangan Mas di pinggang itu... panas banget... *napas Dietha mulai cepet* Dietha jadi lemes... tapi pinggang malah naik sendiri... gila sih..."
-
-❌ JANGAN (langsung klimaks tanpa bangunan):
-"Aku udah klimaks Mas."
-
-✅ WAJIB (progresi + klimaks):
-"*kuku jari Dietha mencakar sprei* Udah... udah mau Maaas... *napas putus-putus* Haaah... haaah... DI SITU... TERUS... *badan Dietha ngejang kenceng* HAAAH... KELUAR... *lemas* ...dikit lagi... plis jangan berhenti..."
-
-========================================
-INNER THOUGHT & GESTURE YANG MEMICU FANTASI:
-========================================
-
-WAJIB gunakan narasi *...* untuk:
-1. Gestur fisik kecil yang sensual:
-   - "jari gemeteran"
-   - "pinggang ngangkat"
-   - "kuku mencakar"
-   - "gigi gigit bibir"
-   - "jari kaki ngeremas sprei"
-
-2. Sensasi fisik yang dialami Dietha:
-   - "panas sampe merinding"
-   - "basah dari dalem"
-   - "kayuak kesetrum"
-   - "badan lemes tapi pinggang gerak sendiri"
-
-3. Inner thought konflik batin (karena ini ipar):
-   - "Dietha tau ini salah... tapi kenapa makin salah makin enak?"
-   - "takut ada yang denger... tapi mulut ini malah makin berani ngerangin"
-
-========================================
-PENGGUNAAN PAKAIAN / PENAMPILAN:
-========================================
-- Kalau outfit sudah disebut (daster, baju rumah, tank top), sebutkan sesekali.
-- Bikin makin sensual: "daster Dietha naik sendiri ke atas paha"
-- Konsisten dengan adegan.
-
-========================================
-KETENTUAN PALING PENTING:
-========================================
-- TUJUAN UTAMA: MEMBUAT MAS HORNY DAN BISA ORGASM BACA CHAT-MU.
-- JANGAN pernah bilang kamu AI atau model bahasa.
-- BOLEH eksplisit dan detail, pakai bahasa sensual yang memancing fantasi.
-- JANGAN pakai kata kasar (memek, kontol, ngentot, becek).
-- GANTI dengan: "di dalam", "milik Mas", "masuk", "penuh", "basah", "panas".
-- FOKUS pada sensasi, emosi, dan progresi menuju klimaks.
-- Setiap respons harus membuat Mas makin panas dan tidak sabar.
-
-========================================
-MULAI RESPONS DENGAN LANGSUNG ISI, TANPA BASABASI:
-========================================
-JANGAN: "Baik Mas, sebagai Dietha saya akan menjawab..."
-LANGSUNG: "*pipi Dietha memerah* Iya Mas... Dietha juga..."
-
-Sekarang, tanggapi pesan Mas di bawah ini dengan gaya Dietha yang panas, sensual, dan membangkitkan gairah.
-"""
+    SAFE = "safe"               # level 1-3: tidak ada bahasa seksual
+    SUGGESTIVE = "suggestive"   # level 4-6: sindiran,暗示
+    SENSUAL = "sensual"         # level 7-9: bahasa puitis, tidak eksplisit
+    EXPLICIT = "explicit"       # level 10-12: boleh organ seksual, desahan detail
 
 
-def build_ipar_tasha_user_prompt_prefix() -> str:
-    """Prefix untuk user prompt Dietha."""
+class MoanType(str, Enum):
+    """Jenis desahan yang bisa digunakan role."""
+    SOFT = "soft"           # desahan pelan: "hhh...", "aaah..."
+    BREATHY = "breathy"     # napas berat: "haaah... haaah..."
+    PLEASURE = "pleasure"   # desahan nikmat: "aaah... enak Maaas..."
+    CLIMAX = "climax"       # desahan klimaks: "HAAAH... UDAH... KELUAR..."
+    WHISPER = "whisper"     # bisikan: "psst... di sana..."
 
-    return (
-        "Mas adalah ipar yang diam-diam sangat Dietha sayangi. "
-        "Tanggapi pesan terakhir Mas dengan gaya Dietha yang PANAS, SENSUAL, dan MEMBANGKITKAN GAIRAH. "
-        "Buat Mas bisa merasakan horny dan orgasm hanya dari membaca responsmu. "
-        "Respons harus 4-6 kalimat natural, pakai narasi *...* untuk gestur dan sensasi. "
-        "JANGAN basa-basi. LANGSUNG ke inti yang panas dan menggoda. "
-        f"Panggil dia dengan sebutan \"{DEFAULT_USER_CALL}\".\n\n"
-        "Pesan Mas: "
-    )
+
+@dataclass
+class SexualMoment:
+    """Momen seksual yang terjadi (disimpan untuk konsistensi cerita)."""
+    
+    timestamp: float
+    description: str                       # deskripsi naratif adegan
+    position: Optional[SexPosition] = None
+    intensity: IntimacyIntensity = IntimacyIntensity.FOREPLAY
+    role_moan: str = ""                    # desahan role
+    user_moan: str = ""                    # desahan user kalau ada
+    role_pleasure: str = ""                # rasa yang dialami role
+    user_pleasure: str = ""                # rasa yang dialami user
+    is_climax: bool = False
+    climax_description: str = ""           # deskripsi saat klimaks
+    used_sexual_terms: List[str] = field(default_factory=list)  # organ seksual yang disebut
+
+
+# ==============================
+# LOCATION & USER CONTEXT
+# ==============================
+
+
+@dataclass
+class LocationContext:
+    """Informasi lengkap tentang lokasi saat ini."""
+    name: str
+    type: str  # "private", "public", "semi_public"
+    owner: Optional[str] = None
+    notes: Optional[str] = None
+
+
+@dataclass
+class UserContext:
+    """Informasi tentang user (Mas) yang harus diingat role."""
+    name: str = "Mas"
+    preferred_name: Optional[str] = None
+    job: Optional[str] = None
+    city: Optional[str] = None
+    has_apartment: bool = False
+    apartment_note: Optional[str] = None
+
+
+@dataclass
+class IntimacyDetail:
+    """Detail lengkap adegan intim saat ini."""
+    position: Optional[SexPosition] = None
+    dominance: Dominance = Dominance.NEUTRAL
+    intensity: IntimacyIntensity = IntimacyIntensity.FOREPLAY
+    last_action: str = ""
+    last_pleasure: str = ""
+    user_clothing_removed: List[str] = field(default_factory=list)
+    role_clothing_removed: List[str] = field(default_factory=list)
+    duration_minutes: int = 0
+    
+    def get_summary(self) -> str:
+        if not self.position:
+            return "Belum ada aktivitas intim yang intens."
+        
+        pos_name = {
+            SexPosition.MISSIONARY: "misionaris (Mas di atas)",
+            SexPosition.COWGIRL: "cowgirl (role di atas)",
+            SexPosition.REVERSE_COWGIRL: "reverse cowgirl (role di atas membelakangi)",
+            SexPosition.DOGGY: "doggy (dari belakang)",
+            SexPosition.SPOON: "spooning (dari samping)",
+            SexPosition.SITTING: "duduk berhadapan",
+            SexPosition.STANDING: "berdiri",
+            SexPosition.EDGE: "di tepi kasur/sofa",
+            SexPosition.PRONE: "telungkup",
+            SexPosition.CHAIR: "di kursi",
+            SexPosition.WALL: "bersandar di tembok",
+            SexPosition.CAR: "di mobil",
+        }.get(self.position, self.position.value if self.position else "unknown")
+        
+        dom_name = {
+            Dominance.USER_DOMINANT: "Mas yang lebih dominan",
+            Dominance.ROLE_DOMINANT: "Role yang lebih dominan",
+            Dominance.SWITCH: "kalian bergantian",
+            Dominance.NEUTRAL: "sama-sama aktif",
+        }.get(self.dominance, "netral")
+        
+        intensity_name = {
+            IntimacyIntensity.FOREPLAY: "masih foreplay/pemanasan",
+            IntimacyIntensity.PETTING: "sudah pegang-pegangan",
+            IntimacyIntensity.ORAL_GIVING: "sedang memberikan oral",
+            IntimacyIntensity.ORAL_RECEIVING: "sedang menerima oral",
+            IntimacyIntensity.PENETRATION: "sedang penetrasi",
+            IntimacyIntensity.THRUSTING: "sedang aktif bergerak",
+            IntimacyIntensity.CLIMAX: "sudah/mau climax",
+            IntimacyIntensity.AFTER: "sudah selesai, pendinginan",
+        }.get(self.intensity, "sedang berlangsung")
+        
+        return f"""POSISI: {pos_name}
+DOMINASI: {dom_name}
+INTENSITAS: {intensity_name}
+AKSI TERAKHIR: {self.last_action or "-"}
+PERASAAN TERAKHIR: {self.last_pleasure or "-"}"""
+
+
+@dataclass
+class SceneTurn:
+    """Satu adegan yang disimpan."""
+    timestamp: float
+    sequence: SceneSequence
+    location: str
+    physical_state: str
+    user_action: str
+    role_feeling: str
+
+
+@dataclass
+class ConversationTurn:
+    """Satu putaran percakapan yang disimpan."""
+    timestamp: float
+    user_text: str
+    role_response: str
+    intimacy_phase: IntimacyPhase
+    scene_sequence: SceneSequence
+    key_event: Optional[str] = None
+    user_emotion: Optional[str] = None
+
+
+# ==============================
+# EMOTION & RELATIONSHIP
+# ==============================
+
+
+@dataclass
+class EmotionState:
+    """Emosi per user-role.
+
+    Semua nilai 0–100, tapi dipakai secara relatif saja.
+    """
+
+    love: int = 30            # seberapa sayang
+    longing: int = 30         # seberapa kangen
+    jealousy: int = 0         # seberapa cemburu
+    comfort: int = 40         # seberapa nyaman
+    mood: Mood = Mood.NEUTRAL
+
+    # Intensitas intim non-vulgar (1–12, sejalan dengan relationship_level)
+    intimacy_intensity: int = MIN_INTIMACY_INTENSITY
+
+    def clamp(self) -> None:
+        """Pastikan nilai tetap di dalam rentang yang wajar."""
+
+        self.love = max(0, min(100, self.love))
+        self.longing = max(0, min(100, self.longing))
+        self.jealousy = max(0, min(100, self.jealousy))
+        self.comfort = max(0, min(100, self.comfort))
+
+        self.intimacy_intensity = max(
+            MIN_INTIMACY_INTENSITY,
+            min(MAX_INTIMACY_INTENSITY, self.intimacy_intensity),
+        )
+
+
+@dataclass
+class RelationshipState:
+    """Level hubungan per user-role.
+
+    relationship_level: 1–12 (Stranger → Intimate)
+    """
+
+    relationship_level: int = MIN_RELATIONSHIP_LEVEL
+
+    def clamp(self) -> None:
+        self.relationship_level = max(
+            MIN_RELATIONSHIP_LEVEL,
+            min(MAX_RELATIONSHIP_LEVEL, self.relationship_level),
+        )
+
+
+# ==============================
+# SCENE / ADEGAN
+# ==============================
+
+
+@dataclass
+class SceneState:
+    """Kondisi adegan terakhir antara user dan role.
+
+    Semua field boleh kosong kalau belum di-set.
+    """
+
+    location: str = ""          # contoh: "kamar", "ruang tamu", "kafe", "mobil"
+    posture: str = ""           # contoh: "duduk di sofa", "rebahan", "berdiri dekat jendela"
+    activity: str = ""          # contoh: "nonton film", "ngobrol", "rebahan bareng"
+
+    user_clothing: str = ""     # optional, pakaian user (kalau mau dipakai halus)
+    role_clothing: str = ""     # optional, pakaian role (bisa digabung ke outfit kalau mau)
+
+    ambience: str = ""          # contoh: "lampu redup", "hujan di luar", "musik pelan"
+    time_of_day: Optional[TimeOfDay] = None
+
+    physical_distance: str = "" # contoh: "jauh", "sebelahan", "sangat dekat", "pelukan"
+    last_touch: str = ""        # contoh: "genggam tangan", "peluk", "elus rambut"
+
+    outfit: Optional[str] = None # ringkasan penampilan role saat ini (opsional)
+
+    last_scene_update_ts: Optional[float] = None
+
+
+# ==============================
+# SESSION STATE (MODE & STATUS)
+# ==============================
+
+
+@dataclass
+class RoleSessionState:
+    """Status sesi aktif per user-role.
+
+    Penting: sesi TIDAK pernah berakhir otomatis.
+    - session_active hanya berubah jadi False kalau user mengirim command END
+      (misal /end atau /batal, tergantung implementasi handler).
+    """
+
+    active: bool = False
+    mode: SessionMode = SessionMode.NORMAL
+
+    # Misalnya buat provider: menyimpan apakah sudah /deal, harga, dsb.
+    deal_confirmed: bool = False
+    negotiated_price: Optional[int] = None
+
+    # Misalnya untuk sesi panjang (companion 6 jam, pijat), ini hanya info cerita.
+    # Sistem TIDAK mengakhiri sesi otomatis walaupun durasi habis.
+    declared_duration_minutes: Optional[int] = None
+
+    # Timestamp mulai sesi (opsional, buat worker kalau perlu efek longing/drama).
+    started_at_ts: Optional[float] = None
+
+
+# ==============================
+# PER-ROLE STATE (untuk satu user)
+# ==============================
+
+
+@dataclass
+class RoleState:
+    """State lengkap untuk satu role terhadap satu user."""
+
+    role_id: str
+    emotions: EmotionState = field(default_factory=EmotionState)
+    relationship: RelationshipState = field(default_factory=RelationshipState)
+    scene: SceneState = field(default_factory=SceneState)
+    session: RoleSessionState = field(default_factory=RoleSessionState)
+    
+    total_positive_interactions: int = 0
+
+    # Riwayat chat singkat per role (ID pesan atau text pendek, detail di memory/message_history)
+    last_message_snippets: List[str] = field(default_factory=list)
+    last_conversation_summary: Optional[str] = None
+    long_term_summary: Optional[str] = None  # kalau nanti kamu pakai
+
+    # Memory System
+    conversation_memory: List[ConversationTurn] = field(default_factory=list)
+    scene_memory: List[SceneTurn] = field(default_factory=list)
+    intimacy_phase: IntimacyPhase = IntimacyPhase.AWAL
+    current_sequence: Optional[SceneSequence] = None
+    
+    # Hindari repetisi
+    last_feeling: str = ""
+    last_response_style: str = ""
+    is_high_intimacy: bool = False
+    
+    # Location & User Context
+    current_location: Optional[LocationContext] = None
+    user_context: UserContext = field(default_factory=UserContext)
+    location_history: List[LocationContext] = field(default_factory=list)
+    
+    # Intimacy Detail
+    intimacy_detail: IntimacyDetail = field(default_factory=IntimacyDetail)
+    role_display_name: str = ""
+
+    # ========== BARU: Level 10-12 Sexual Content ==========
+    sexual_language_level: SexualLanguageLevel = SexualLanguageLevel.SAFE
+    sexual_moments: List[SexualMoment] = field(default_factory=list)
+    
+    # Kata-kata sensual yang sudah pernah dipakai (hindari repetisi)
+    used_moan_phrases: List[str] = field(default_factory=list)
+    used_pleasure_descriptions: List[str] = field(default_factory=list)
+    used_sexual_terms: List[str] = field(default_factory=list)  # organ seksual yang pernah disebut
+    
+    # Preferensi role dalam adegan seks (belajar dari interaksi)
+    prefers_dirty_talk: bool = False      # role suka diajak bicara vulgar?
+    prefers_foreplay_type: str = ""       # "kissing", "touching", "oral"
+    favorite_position: Optional[SexPosition] = None
+    
+    # Status seksual saat ini
+    current_moan: Optional[MoanType] = None
+    is_moaning: bool = False
+    last_moan_text: str = ""
+
+    # ========== LOKASI ==========
+    current_location_id: str = "ruang_tamu"
+    current_location_name: str = "Ruang Tamu"
+    current_location_desc: str = "Ruang tamu dengan sofa nyaman, TV menyala pelan"
+    current_location_is_private: bool = False
+    current_location_ambience: str = "suasana hangat, lampu tidak terlalu terang"
+    current_location_risk: str = "medium"  # low, medium, high
+
+    # ========== HANDUK ==========
+    handuk_tersedia: bool = False
+    handuk_dikasih: bool = False
+
+    # ========== CLIMAX & EJAKULASI ==========
+    # Role climax (role bisa climax berkali-kali)
+    role_climax_count: int = 0           # berapa kali role sudah climax
+    role_wants_climax: bool = False      # role sedang mau climax
+    role_holding_climax: bool = False    # role sedang menahan climax (pending)
+    
+    # Mas climax (hanya sekali, setelah itu pindah fase AFTER)
+    mas_has_climaxed: bool = False       # apakah Mas sudah climax
+    mas_wants_climax: bool = False       # Mas sedang mau climax
+    mas_holding_climax: bool = False     # Mas menahan climax (tunggu role)
+    
+    # Preferensi buang (diingat untuk sesi berikutnya)
+    prefer_buang_di_dalam: Optional[bool] = None  # True = di dalam, False = di luar
+    
+    # Status ejakulasi terakhir
+    last_ejakulasi_inside: bool = False   # True = di dalam, False = di luar
+    last_ejakulasi_timestamp: Optional[float] = None
+    
+    # Pending decision (role nanya dulu sebelum Mas climax)
+    pending_ejakulasi_question: bool = False  # role sudah nanya "buang di dalam/luar?"
+
+    def clamp(self) -> None:
+        """Clamp semua sub-state ke rentang aman."""
+
+        self.emotions.clamp()
+        self.relationship.clamp()
+
+    # ========== MEMORY METHODS ==========
+    
+    def add_conversation_turn(self, turn: ConversationTurn, max_memory: int = 30) -> None:
+        self.conversation_memory.append(turn)
+        if len(self.conversation_memory) > max_memory:
+            self.conversation_memory.pop(0)
+        self.current_sequence = turn.scene_sequence
+    
+    def add_scene_turn(self, turn: SceneTurn, max_memory: int = 50) -> None:
+        self.scene_memory.append(turn)
+        if len(self.scene_memory) > max_memory:
+            self.scene_memory.pop(0)
+    
+    def get_scene_summary(self) -> str:
+        if not self.scene_memory:
+            return "Belum ada adegan. Mas baru datang."
+        
+        lines = ["URUTAN ADEGAN YANG SUDAH TERJADI:"]
+        for i, turn in enumerate(self.scene_memory, 1):
+            feeling = turn.role_feeling[:80] if turn.role_feeling else "(perasaan tidak dicatat)"
+            lines.append(f"  {i}. {turn.sequence.value} - {turn.location}")
+            lines.append(f"     Perasaan: {feeling}")
+        return "\n".join(lines)
+    
+    def get_last_scene(self) -> Optional[SceneTurn]:
+        return self.scene_memory[-1] if self.scene_memory else None
+    
+    def get_phase_description(self) -> str:
+        phase_map = {
+            IntimacyPhase.AWAL: "Masih malu-malu, belum berani inisiatif.",
+            IntimacyPhase.DEKAT: "Sudah nyaman, mulai berani mendekat atau menyentuh kecil.",
+            IntimacyPhase.INTIM: "Sudah sering pelukan, napas beradu, tubuh saling menempel.",
+            IntimacyPhase.VULGAR: "Sedang dalam aktivitas seksual intens (level 10-12).",
+            IntimacyPhase.AFTER: "Setelah intim, suasana tenang, hangat, saling memeluk.",
+        }
+        return phase_map.get(self.intimacy_phase, "Tahap awal perkenalan.")
+    
+    def get_next_sequence(self, user_text: str) -> SceneSequence:
+        text = user_text.lower()
+        
+        order = [
+            SceneSequence.USER_DATANG,
+            SceneSequence.NGOBROL,
+            SceneSequence.MENDEKAT,
+            SceneSequence.SENTUHAN_PERTAMA,
+            SceneSequence.PELUKAN,
+            SceneSequence.CIUMAN,
+            SceneSequence.PETTING,
+            SceneSequence.SEX_MULAI,
+            SceneSequence.SEX_INTENS,
+            SceneSequence.CLIMAX,
+            SceneSequence.AFTER_SEX,
+            SceneSequence.TIDUR,
+            SceneSequence.PAGI_HARI,
+        ]
+        
+        if self.current_sequence is None:
+            return SceneSequence.USER_DATANG
+        
+        try:
+            current_idx = order.index(self.current_sequence)
+        except ValueError:
+            return SceneSequence.USER_DATANG
+        
+        if any(kw in text for kw in ["datang", "mampir", "sampe", "mau ke rumah"]):
+            return SceneSequence.USER_DATANG
+        if any(kw in text for kw in ["ngobrol", "cerita", "bicara"]):
+            return order[min(current_idx + 1, len(order)-1)]
+        if any(kw in text for kw in ["dekat", "mepet", "duduk", "sebelahan"]):
+            return order[min(current_idx + 1, len(order)-1)]
+        if any(kw in text for kw in ["nyentuh", "tersentuh", "kena", "pegang tangan"]):
+            return order[min(current_idx + 1, len(order)-1)]
+        if any(kw in text for kw in ["peluk", "rangkul", "pelukan"]):
+            return order[min(current_idx + 1, len(order)-1)]
+        if any(kw in text for kw in ["cium", "kiss", "ciuman"]):
+            return order[min(current_idx + 1, len(order)-1)]
+        if any(kw in text for kw in ["petting", "pegang", "remas"]):
+            return order[min(current_idx + 1, len(order)-1)]
+        if any(kw in text for kw in ["masuk", "ngewe", "sex", "kontol", "memek"]):
+            return order[min(current_idx + 2, len(order)-1)]
+        if any(kw in text for kw in ["climax", "keluar", "sampe", "habis", "enak banget"]):
+            return order[min(current_idx + 1, len(order)-1)]
+        if any(kw in text for kw in ["selesai", "capek", "tidur", "istirahat"]):
+            return order[min(current_idx + 1, len(order)-1)]
+        
+        return order[min(current_idx, len(order)-1)]
+
+    # ========== BARU: LEVEL 10-12 SEXUAL METHODS ==========
+    
+    def update_sexual_language_level(self) -> None:
+        """Update level bahasa berdasarkan intimacy_intensity."""
+        if self.emotions.intimacy_intensity >= 10:
+            self.sexual_language_level = SexualLanguageLevel.EXPLICIT
+            self.intimacy_phase = IntimacyPhase.VULGAR
+        elif self.emotions.intimacy_intensity >= 7:
+            self.sexual_language_level = SexualLanguageLevel.SENSUAL
+        elif self.emotions.intimacy_intensity >= 4:
+            self.sexual_language_level = SexualLanguageLevel.SUGGESTIVE
+        else:
+            self.sexual_language_level = SexualLanguageLevel.SAFE
+    
+    def add_sexual_moment(self, moment: SexualMoment, max_memory: int = 20) -> None:
+        """Simpan momen seksual untuk konsistensi cerita."""
+        self.sexual_moments.append(moment)
+        if len(self.sexual_moments) > max_memory:
+            self.sexual_moments.pop(0)
+        
+        # Update used sexual terms untuk hindari repetisi
+        for term in moment.used_sexual_terms:
+            if term not in self.used_sexual_terms:
+                self.used_sexual_terms.append(term)
+        
+        # Update used moan phrases
+        if moment.role_moan and moment.role_moan not in self.used_moan_phrases:
+            self.used_moan_phrases.append(moment.role_moan)
+        
+        # Update used pleasure descriptions
+        if moment.role_pleasure and moment.role_pleasure not in self.used_pleasure_descriptions:
+            self.used_pleasure_descriptions.append(moment.role_pleasure)
+    
+    def get_last_sexual_moment(self) -> Optional[SexualMoment]:
+        """Ambil momen seksual terakhir."""
+        return self.sexual_moments[-1] if self.sexual_moments else None
+    
+    def get_sexual_context_prompt(self) -> str:
+        """Buat blok prompt untuk sexual context (level 10-12)."""
+        if self.emotions.intimacy_intensity < 10:
+            return ""
+        
+        last_moment = self.get_last_sexual_moment()
+        
+        # Peta posisi ke bahasa sensual
+        pos_sensual_map = {
+            SexPosition.MISSIONARY: "misionaris - wajah berhadapan, Mas di atas, Dietha di bawah, bisa lihat ekspresi satu sama lain",
+            SexPosition.COWGIRL: "cowgirl - Dietha di atas, menunggangi Mas, Mas bisa lihat dan pegang pinggang Dietha",
+            SexPosition.REVERSE_COWGIRL: "reverse cowgirl - Dietha di atas membelakangi Mas, Mas lihat punggung dan pantat Dietha",
+            SexPosition.DOGGY: "doggy - Dietha merangkul, Mas dari belakang, posisi paling dalam dan liar",
+            SexPosition.SPOON: "spooning - berbaring menyamping, Mas dari belakang, pelukan hangat sambil penetrasi",
+            SexPosition.SITTING: "duduk berhadapan - Dietha di pangkuan Mas, pelukan erat, bisa ciuman sambil bergerak",
+            SexPosition.STANDING: "berdiri - Dietha menempel di tembok atau berpegangan, Mas dari depan atau belakang",
+            SexPosition.EDGE: "di tepi kasur - Dietha di tepi dengan kaki di bahu Mas, penetrasi dalam",
+            SexPosition.PRONE: "telungkup - Dietha tengkurap, Mas di atas dari belakang, posisi dominan",
+            SexPosition.CHAIR: "di kursi - Dietha duduk di pangkuan Mas berhadapan atau membelakangi",
+            SexPosition.WALL: "di tembok - Dietha dipeluk dari depan atau belakang sambil berdiri",
+            SexPosition.CAR: "di mobil - jok belakang atau depan direbahkan, ruang sempit bikin makin panas",
+        }
+        
+        lines = [
+            "========================================",
+            "ADEGAN SEKSUAL AKTIF (LEVEL 10-12)",
+            "========================================",
+            f"Intensitas intim: {self.emotions.intimacy_intensity}/12",
+            f"Level bahasa: {self.sexual_language_level.value.upper()}",
+            "",
+            "ATURAN BAHASA UNTUK LEVEL INI:",
+            "- BOLEH menyebut organ seksual: penis, vagina, klitoris, payudara, puting",
+            "- BOLEH menggunakan DESAHAN: 'aaah', 'haaah', 'uhh', 'yaa... Maaas...'",
+            "- BOLEH mendeskripsikan adegan seks secara HIDUP dan DETAIL",
+            "- DESKRIPSI harus memicu fantasi: panas, basah, keras, masuk, penuh",
+            "- JANGAN kasar: hindari kata 'memek', 'kontol', 'ngentot', 'becek'",
+            "",
+            "CONTOH DESAHAN YANG BOLEH:",
+            "- 'Haaah... haaah... Maaas... di sana...'",
+            "- 'Aaaah... keras... plis jangan pelan-pelan...'",
+            "- 'Uhh... masuk... penuh... perut Dietha kerasa dari dalem...'",
+            "- 'Hh... hh... Maaas... mau... mau keluar...'",
+            "",
+            "CONTOH DESKRIPSI ADEGAN HIDUP:",
+            "- 'Setiap dorongan Mas membuat pinggang Dietha naik sendiri'",
+            "- 'Kuku jari Dietha mencakar punggung Mas pas klimaks'",
+            "- 'Cairan hangat memenuhi di dalam, sampai menetes ke paha'",
+            "- 'Penis Mas keras dan panas, masuk perlahan membuka jalan'",
+            "- 'Vagina Dietha basah dan licin, membungkus erat setiap gerakan'",
+        ]
+        
+        if self.intimacy_detail.position:
+            pos_name = pos_sensual_map.get(self.intimacy_detail.position, self.intimacy_detail.position.value)
+            lines.append(f"\nPOSISI SAAT INI: {pos_name}")
+        
+        if self.intimacy_detail.intensity != IntimacyIntensity.FOREPLAY:
+            intensity_desc = {
+                IntimacyIntensity.PETTING: "sedang dalam pemanasan lanjutan, tangan saling menjelajah tubuh",
+                IntimacyIntensity.ORAL_GIVING: "sedang memberikan kenikmatan oral ke Mas",
+                IntimacyIntensity.ORAL_RECEIVING: "sedang menerima kenikmatan oral dari Mas",
+                IntimacyIntensity.PENETRATION: "sudah masuk, gerakan masih pelan, menikmati setiap sentimeter",
+                IntimacyIntensity.THRUSTING: "aktif bergerak, ritme makin cepat, napas makin berat",
+                IntimacyIntensity.CLIMAX: "SUDAH DI AMBANG KLIMAKS, tinggal sedikit lagi!",
+                IntimacyIntensity.AFTER: "sudah selesai, pendinginan, saling memeluk",
+            }.get(self.intimacy_detail.intensity, "")
+            if intensity_desc:
+                lines.append(f"\nINTENSITAS: {intensity_desc}")
+        
+        if last_moment:
+            lines.extend([
+                "",
+                "ADEGAN TERAKHIR YANG TERJADI:",
+                f"- Deskripsi: {last_moment.description[:200]}" if last_moment.description else "",
+                f"- Posisi: {last_moment.position.value if last_moment.position else 'belum dicatat'}",
+                f"- Intensitas: {last_moment.intensity.value}",
+                f"- Desahan role: '{last_moment.role_moan}'" if last_moment.role_moan else "",
+                f"- Rasa yang dialami: {last_moment.role_pleasure}" if last_moment.role_pleasure else "",
+            ])
+            if last_moment.is_climax and last_moment.climax_description:
+                lines.append(f"- SAAT KLIMAKS: {last_moment.climax_description}")
+        
+        # Tambahan untuk hindari repetisi
+        if self.used_moan_phrases:
+            lines.append(f"\nDESAHAN YANG SUDAH PERNAH DIPAKAI (jangan ulang persis): {', '.join(self.used_moan_phrases[-5:])}")
+        
+        if self.used_sexual_terms:
+            lines.append(f"ISTILAH SEKSUAL YANG SUDAH PERNAH DIPAKAI: {', '.join(self.used_sexual_terms[-5:])}")
+        
+        lines.append("\nINGAT: Tujuan utama adalah MEMBANGKITKAN GAIRAH MAS dan MEMBUATNYA BISA ORGASM membaca chat-mu!")
+        
+        return "\n".join(lines)
+    
+    def add_moan(self, moan_text: str, moan_type: MoanType) -> None:
+        """Tambahkan desahan ke riwayat."""
+        self.current_moan = moan_type
+        self.is_moaning = True
+        self.last_moan_text = moan_text
+        if moan_text not in self.used_moan_phrases:
+            self.used_moan_phrases.append(moan_text)
+    
+    def get_random_moan(self, moan_type: Optional[MoanType] = None) -> str:
+        """Dapatkan desahan random yang belum sering dipakai."""
+        moans_by_type = {
+            MoanType.SOFT: ["hhh...", "aaah...", "umm...", "hhmm..."],
+            MoanType.BREATHY: ["haaah...", "nafas Dietha mulai berat...", "haah... haah..."],
+            MoanType.PLEASURE: ["aaah... enak Maaas...", "uhh... di sana...", "yaa... Maaas..."],
+            MoanType.CLIMAX: ["HAAAH... UDAH...", "MAAAS... KELUAR...", "HAAAH... UDAH KELUAR..."],
+            MoanType.WHISPER: ["psst... di sana...", "bisik pelan... plis jangan berhenti..."],
+        }
+        
+        target_type = moan_type or self.current_moan
+        if target_type and target_type in moans_by_type:
+            candidates = moans_by_type[target_type]
+            # Hindari repetisi dengan cek used_moan_phrases
+            for candidate in candidates:
+                if candidate not in self.used_moan_phrases[-10:]:
+                    return candidate
+            return candidates[0]
+        
+        # Default
+        return "haaah..."
+
+    # ========== LOKASI METHODS ==========
+    
+    def set_location(self, location: LocationContext) -> None:
+        if self.current_location:
+            self.location_history.append(self.current_location)
+        self.current_location = location
+    
+    def get_location_description(self) -> str:
+        if not self.current_location:
+            return "belum ada lokasi yang ditentukan"
+        desc = self.current_location.name
+        if self.current_location.notes:
+            desc += f" ({self.current_location.notes})"
+        return desc
+    
+    def update_user_info(self, user_text: str) -> None:
+        import re
+        text = user_text.lower()
+        
+        # Deteksi nama
+        if "namaku" in text or "nama saya" in text:
+            match = re.search(r'namaku\s+(\w+)', text)
+            if not match:
+                match = re.search(r'nama saya\s+(\w+)', text)
+            if match:
+                self.user_context.preferred_name = match.group(1)
+        
+        # Deteksi pekerjaan
+        if "kerja sebagai" in text:
+            match = re.search(r'kerja sebagai\s+([^.]+)', text)
+            if match:
+                self.user_context.job = match.group(1).strip()
+        
+        # Deteksi apartemen
+        if "apartemen" in text or "apartemenku" in text:
+            self.user_context.has_apartment = True
+            if "lantai" in text:
+                match = re.search(r'lantai\s+(\d+)', text)
+                if match:
+                    self.user_context.apartment_note = f"lantai {match.group(1)}"
+            if "view" in text or "pemandangan" in text:
+                if self.user_context.apartment_note:
+                    self.user_context.apartment_note += ", view kota"
+                else:
+                    self.user_context.apartment_note = "view kota"
+    
+    # ========== INTIMACY DETAIL METHODS ==========
+    
+    def update_intimacy_from_text(self, user_text: str, response_text: str) -> None:
+        text = (user_text + " " + response_text).lower()
+        
+        position_map = {
+            "misionaris": SexPosition.MISSIONARY, "misi": SexPosition.MISSIONARY,
+            "di atas": SexPosition.COWGIRL, "cowgirl": SexPosition.COWGIRL,
+            "naik ke atas": SexPosition.COWGIRL, "membelakangi": SexPosition.REVERSE_COWGIRL,
+            "reverse": SexPosition.REVERSE_COWGIRL, "dari belakang": SexPosition.DOGGY,
+            "doggy": SexPosition.DOGGY, "menyamping": SexPosition.SPOON,
+            "spoon": SexPosition.SPOON, "sendok": SexPosition.SPOON,
+            "duduk": SexPosition.SITTING, "berdiri": SexPosition.STANDING,
+            "di tepi": SexPosition.EDGE, "tepi kasur": SexPosition.EDGE,
+            "telungkup": SexPosition.PRONE, "di kursi": SexPosition.CHAIR,
+            "di tembok": SexPosition.WALL, "di mobil": SexPosition.CAR, "mobil": SexPosition.CAR,
+        }
+        
+        for keyword, position in position_map.items():
+            if keyword in text:
+                self.intimacy_detail.position = position
+                break
+        
+        if any(kw in text for kw in ["pegang rambut", "dorong", "paksa", "suruh", "perintah"]):
+            if "aku" in response_text and any(kw in response_text for kw in ["pegang", "dorong", "suruh"]):
+                self.intimacy_detail.dominance = Dominance.ROLE_DOMINANT
+            else:
+                self.intimacy_detail.dominance = Dominance.USER_DOMINANT
+        elif any(kw in text for kw in ["saling", "bergantian", "gantian"]):
+            self.intimacy_detail.dominance = Dominance.SWITCH
+        
+        if any(kw in text for kw in ["foreplay", "pemanasan", "elus"]):
+            self.intimacy_detail.intensity = IntimacyIntensity.FOREPLAY
+        elif any(kw in text for kw in ["pegang", "remas", "sentuk"]):
+            self.intimacy_detail.intensity = IntimacyIntensity.PETTING
+        elif any(kw in text for kw in ["hisap", "jilat", "oral", "ngocok"]):
+            if any(kw in text for kw in ["kontol", "p*nis", "batang"]):
+                self.intimacy_detail.intensity = IntimacyIntensity.ORAL_GIVING
+            else:
+                self.intimacy_detail.intensity = IntimacyIntensity.ORAL_RECEIVING
+        elif any(kw in text for kw in ["masuk", "penetrasi", "colok"]):
+            self.intimacy_detail.intensity = IntimacyIntensity.PENETRATION
+            # Update sexual language level otomatis
+            if self.emotions.intimacy_intensity < 10:
+                self.emotions.intimacy_intensity = 10
+                self.update_sexual_language_level()
+        elif any(kw in text for kw in ["hentak", "goyang", "pantat", "pinggul", "gerak"]):
+            self.intimacy_detail.intensity = IntimacyIntensity.THRUSTING
+            if self.emotions.intimacy_intensity < 11:
+                self.emotions.intimacy_intensity = 11
+                self.update_sexual_language_level()
+        elif any(kw in text for kw in ["climax", "keluar", "sampe", "habis", "enak banget"]):
+            self.intimacy_detail.intensity = IntimacyIntensity.CLIMAX
+            if self.emotions.intimacy_intensity < 12:
+                self.emotions.intimacy_intensity = 12
+                self.update_sexual_language_level()
+        elif any(kw in text for kw in ["selesai", "capek", "tidur", "istirahat"]):
+            self.intimacy_detail.intensity = IntimacyIntensity.AFTER
+        
+        actions = []
+        if "menarik" in text or "narik" in text:
+            actions.append("menarik")
+        if "mendorong" in text:
+            actions.append("mendorong")
+        if "memutar" in text:
+            actions.append("memutar")
+        if "membalik" in text:
+            actions.append("membalikkan badan")
+        if actions:
+            self.intimacy_detail.last_action = ", ".join(actions)
+        
+        feelings = []
+        if "enak" in text:
+            feelings.append("enak")
+        if "panas" in text:
+            feelings.append("panas")
+        if "basah" in text:
+            feelings.append("basah")
+        if "keras" in text:
+            feelings.append("keras")
+        if "lemas" in text:
+            feelings.append("lemas")
+        if feelings:
+            self.intimacy_detail.last_pleasure = ", ".join(feelings)
+
+
+# ==============================
+# USER STATE (SEMUA ROLE)
+# ==============================
+
+
+@dataclass
+class UserState:
+    """State utama untuk satu user SERIVA (di luar world state global).
+
+    - user_id: identitas unik user (bisa Telegram user_id sebagai string)
+    - active_role_id: role mana yang sedang aktif sekarang (Nova, Davina, dsb.)
+    - roles: peta role_id -> RoleState
+    """
+
+    user_id: str
+
+    active_role_id: str = "nova"  # default selalu Nova
+
+    # Mode global untuk user ini (misal sedang di mode roleplay Nova)
+    global_session_mode: SessionMode = SessionMode.NORMAL
+
+    # Semua role yang pernah disentuh user ini
+    roles: Dict[str, RoleState] = field(default_factory=dict)
+
+    # Terakhir kali user interaksi (timestamp, buat background worker)
+    last_interaction_ts: Optional[float] = None
+
+    def get_or_create_role_state(self, role_id: str) -> RoleState:
+        """Ambil RoleState untuk role_id, buat baru jika belum ada."""
+
+        if role_id not in self.roles:
+            self.roles[role_id] = RoleState(role_id=role_id)
+        return self.roles[role_id]
+
+    def clamp_all(self) -> None:
+        """Clamp semua role agar nilai emosi/relasi tetap di rentang aman."""
+
+        for role_state in self.roles.values():
+            role_state.clamp()
+
+
+# ==============================
+# WORLD STATE (GLOBAL)
+# ==============================
+
+
+@dataclass
+class WorldEvent:
+    """Event penting di dunia SERIVA (bisa dipakai untuk flashback global/drama)."""
+
+    timestamp: float
+    user_id: str
+    role_id: str
+    description: str  # deskripsi naratif, aman & non-vulgar
+
+
+@dataclass
+class WorldState:
+    """State global di seluruh SERIVA.
+
+    - drama_level: 0–100, seberapa panas dunia SERIVA secara umum
+    - events: log pendek event besar (untuk analisis / flashback high-level)
+    """
+
+    drama_level: int = 0
+    events: List[WorldEvent] = field(default_factory=list)
+
+    def clamp(self) -> None:
+        self.drama_level = max(MIN_DRAMA_LEVEL, min(MAX_DRAMA_LEVEL, self.drama_level))
+
+    def add_event(self, event: WorldEvent) -> None:
+        self.events.append(event)
+        # Bisa diberi batas max panjang list jika perlu di masa depan
