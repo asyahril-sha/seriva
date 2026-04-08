@@ -102,7 +102,7 @@ def main() -> None:
     orchestrator = Orchestrator(
         user_store=user_store,
         world_store=world_store,
-        llm = LLMClient(llm_cfg)
+        llm = LLMClient(llm_cfg),
         milestone_store=milestone_store,
         message_history_store=message_history_store,  # ← TAMBAHKAN
         story_memory_store=story_memory_store,        # ← TAMBAHKAN
