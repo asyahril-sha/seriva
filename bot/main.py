@@ -107,6 +107,17 @@ def main() -> None:
     .build()
     )
 
+    llm_client = LLMClient(llm_cfg)
+
+    orchestrator = Orchestrator(
+        user_store=user_store,
+        world_store=world_store,
+        llm_client=llm_client,
+        milestone_store=milestone_store,
+        message_history_store=message_history_store,
+        story_memory_store=story_memory_store,
+    )
+
     # Command handlers
     app.add_handler(CommandHandler("start", start_handler(orchestrator, admin_id)))
     app.add_handler(CommandHandler("help", help_handler(orchestrator, admin_id)))
