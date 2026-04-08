@@ -99,15 +99,6 @@ def main() -> None:
         api_key=os.getenv("LLM_API_KEY"),
     )
 
-    orchestrator = Orchestrator(
-        user_store=user_store,
-        world_store=world_store,
-        llm_client=LLMClient(llm_cfg), 
-        milestone_store=milestone_store,
-        message_history_store=message_history_store,  # ← TAMBAHKAN
-        story_memory_store=story_memory_store,        # ← TAMBAHKAN
-    )
-
     # Setup Telegram Application
     app = (
         Application.builder()
