@@ -162,7 +162,7 @@ class Orchestrator:
         self,
         user_store: UserStateStore,
         world_store: WorldStateStore,
-        llm_client: Optional[LLMClient] = None,
+        llm_client=LLMClient(),
         milestone_store: Optional[MilestoneStore] = None,
         message_history_store=None,
         story_memory_store=None,
