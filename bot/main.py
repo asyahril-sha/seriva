@@ -80,12 +80,16 @@ def main() -> None:
     user_store = InMemoryUserStateStore()
     world_store = InMemoryWorldStateStore()
     milestone_store = MilestoneStore()
+    
+    # ← TAMBAHKAN IMPORT DI ATAS (jangan lupa)
+    from memory.message_history import MessageHistoryStore
+    from memory.story_memory import StoryMemoryStore
+    
+    # ← BUAT INSTANCE STORES
+    message_history_store = MessageHistoryStore(max_per_pair=50)
+    story_memory_store = StoryMemoryStore()
 
-    llm_cfg = LLMConfig(
-        api_key=llm_api_key,
-        base_url=llm_base_url,
-        model=llm_model,
-    )
+    llm_cfg = LLMConfig(...)
     llm = LLMClient(config=llm_cfg)
 
     orchestrator = Orchestrator(
@@ -93,6 +97,8 @@ def main() -> None:
         world_store=world_store,
         llm_client=llm,
         milestone_store=milestone_store,
+        message_history_store=message_history_store,  # ← TAMBAHKAN
+        story_memory_store=story_memory_store,        # ← TAMBAHKAN
     )
 
     # Setup Telegram Application
