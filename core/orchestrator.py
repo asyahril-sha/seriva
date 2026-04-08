@@ -68,6 +68,23 @@ from core.intimacy_progression import IntimacyProgressionEngine
 from core.location_system import update_role_location, init_role_location, get_location_prompt_block
 from core.continuity_rules import get_continuity_rules_prompt
 
+# ========== TAMBAHAN UNTUK STORY MEMORY & RESPONSE VARIATION ==========
+from memory.message_history import MessageHistoryStore
+from memory.story_memory import StoryMemoryStore, StoryBeat
+import time
+import random
+import re
+
+# ========== TAMBAHAN UNTUK LLM PARAMETERS ==========
+from config.constants import (
+    LLM_TEMPERATURE_BY_PHASE,
+    DEFAULT_LLM_TEMPERATURE,
+    LLM_TOP_P,
+    LLM_FREQUENCY_PENALTY,
+    LLM_PRESENCE_PENALTY,
+    LLM_MAX_TOKENS,
+)
+
 
 # ==============================
 # STORAGE ABSTRACTION
