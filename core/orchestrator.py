@@ -60,6 +60,7 @@ from core.state_models import (
     ConversationTurn,
     SceneTurn,
     SceneSequence,
+    IntimacyPhase,
 )
 from core.world_engine import WorldEngine
 from memory.milestones import MilestoneStore
@@ -160,24 +161,43 @@ class Orchestrator:
         world_store: WorldStateStore,
         llm_client: Optional[LLMClient] = None,
         milestone_store: Optional[MilestoneStore] = None,
+        message_history_store=None,  # ← TAMBAHKAN
+        story_memory_store=None, 
     ) -> None:
         self.user_store = user_store
         self.world_store = world_store
         self.llm = llm_client or LLMClient()
 
         self.emotion_engine = EmotionEngine()
+        # ← TAMBAHKAN INIT STORES
+        self.message_history = message_history_store or MessageHistoryStore()
+        self.story_memory = story_memory_store or StoryMemoryStore()
         self.scene_engine = SceneEngine()
         self.world_engine = WorldEngine()
 
         # Memory milestones untuk flashback & kenangan khusus
         self.milestones = milestone_store or MilestoneStore()
 
+        # ← TAMBAHKAN POOL VARIASI
+        self.gesture_pool = [
+            ["(jari gemetar)", "(pipi memerah)"],
+            ["(tangan memegang dada)", "(napas memburu)"],
+            ["(bibir menggigit)", "(mata terpejam)"],
+            ["(kuku mencengkeram)", "(kening mengernyit)"],
+            ["(kepala menunduk)", "(bahu naik turun)"],
+        ]
+        
+        self.inner_thought_pool = [
+            "*deg*", "*enak*", "*panas*", "*basah*", "*geli*",
+            "*achhh*", "*uhuk*", "*hufff*", "*gemetar*", "*lemas*"
+        ]
+
       def _get_llm_temperature(self, role_state: RoleState) -> float:
         """Dapatkan temperature sesuai fase"""
         phase = role_state.intimacy_phase.value
         return LLM_TEMPERATURE_BY_PHASE.get(phase, DEFAULT_LLM_TEMPERATURE)
     
-    def _vary_response(self, response: str, role_state: RoleState) -> str:
+      def _vary_response(self, response: str, role_state: RoleState) -> str:
         """Variasi respon agar tidak monoton"""
         if role_state.intimacy_phase == IntimacyPhase.VULGAR:
             if random.random() < 0.6:
@@ -202,7 +222,7 @@ class Orchestrator:
         
         return response
     
-    def _detect_and_record_story_beat(self, user_id: str, role_id: str, user_msg: str, response: str):
+      def _detect_and_record_story_beat(self, user_id: str, role_id: str, user_msg: str, response: str):
         """Deteksi momen penting dan catat ke story memory"""
         combined = f"{user_msg} {response}".lower()
         
