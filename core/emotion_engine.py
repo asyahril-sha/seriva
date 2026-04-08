@@ -87,9 +87,12 @@ class EmotionEngine:
 
     # --- perubahan dasar (dipelankan) ---
 
-    POSITIVE_LOVE_GAIN = 1
-    POSITIVE_LONGING_GAIN = 1
-    POSITIVE_COMFORT_GAIN = 1
+    POSITIVE_LOVE_GAIN = 3
+    POSITIVE_LONGING_GAIN = 2
+    POSITIVE_COMFORT_GAIN = 2
+    RELATIONSHIP_GAIN_SMALL = 2
+    RELATIONSHIP_GAIN_MEDIUM = 3
+    ABSENCE_LONGING_GAIN_PER_DAY = 5
 
     NEGATIVE_LOVE_LOSS = 1
     NEGATIVE_COMFORT_LOSS = 2
@@ -335,7 +338,7 @@ class EmotionEngine:
             return
 
         # Butuh minimal X interaksi positif sebelum ada kenaikan kecil
-        if role_state.total_positive_interactions < 10:
+        if role_state.total_positive_interactions < 5:
             return
 
         if emotions.intimacy_intensity < rel.relationship_level:
