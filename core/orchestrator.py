@@ -172,6 +172,76 @@ class Orchestrator:
         # Memory milestones untuk flashback & kenangan khusus
         self.milestones = milestone_store or MilestoneStore()
 
+      def _get_llm_temperature(self, role_state: RoleState) -> float:
+        """Dapatkan temperature sesuai fase"""
+        phase = role_state.intimacy_phase.value
+        return LLM_TEMPERATURE_BY_PHASE.get(phase, DEFAULT_LLM_TEMPERATURE)
+    
+    def _vary_response(self, response: str, role_state: RoleState) -> str:
+        """Variasi respon agar tidak monoton"""
+        if role_state.intimacy_phase == IntimacyPhase.VULGAR:
+            if random.random() < 0.6:
+                # Ganti inner thought
+                for thought in self.inner_thought_pool:
+                    if thought in response:
+                        new_thought = random.choice(self.inner_thought_pool)
+                        response = response.replace(thought, new_thought)
+                        break
+                
+                # Ganti gesture
+                for gesture in self.gesture_pool:
+                    if gesture[0] in response or (len(gesture) > 1 and gesture[1] in response):
+                        new_gesture = random.choice(self.gesture_pool)
+                        response = response.replace(gesture[0], new_gesture[0])
+                        if len(gesture) > 1 and len(new_gesture) > 1:
+                            response = response.replace(gesture[1], new_gesture[1])
+                        break
+        
+        if role_state.intimacy_phase == IntimacyPhase.VULGAR and len(response) > 300:
+            response = response[:297] + "..."
+        
+        return response
+    
+    def _detect_and_record_story_beat(self, user_id: str, role_id: str, user_msg: str, response: str):
+        """Deteksi momen penting dan catat ke story memory"""
+        combined = f"{user_msg} {response}".lower()
+        
+        if any(word in combined for word in ["cium", "kiss", "mengecup"]):
+            self.story_memory.add_story_beat(
+                user_id, role_id, StoryBeat.FIRST_KISS, 
+                f"User: {user_msg[:50]}"
+            )
+        
+        if any(phrase in combined for phrase in ["aku sayang", "aku cinta", "mas sayang"]):
+            self.story_memory.add_story_beat(
+                user_id, role_id, StoryBeat.CONFESSION,
+                f"User mengaku: {user_msg[:50]}"
+            )
+        
+        if any(word in combined for word in ["climax", "keluar", "habis", "puas"]):
+            self.story_memory.add_story_beat(
+                user_id, role_id, StoryBeat.CLIMAX,
+                f"Mencapai climax: {response[:50]}"
+            )
+        
+        if "janji" in combined:
+            promise_match = re.search(r"janji[:\s]+(.{10,50})", combined)
+            if promise_match:
+                self.story_memory.add_promise(user_id, role_id, promise_match.group(1))
+    
+    def _get_chat_history_context(self, user_id: str, role_id: str) -> str:
+        """Dapatkan history chat ringkas untuk prompt"""
+        recent = self.message_history.get_recent_messages(user_id, role_id, limit=10)
+        if not recent:
+            return "Belum ada percakapan sebelumnya."
+        
+        turns = []
+        for msg in recent[-6:]:  # ambil 6 pesan terakhir
+            role = "User" if msg.from_who == "user" else role_id
+            turns.append(f"{role}: {msg.content[:100]}")
+        
+        return "Percakapan terakhir:\n" + "\n".join(turns)
+      
     # --------------------------------------------------
     # PUBLIC ENTRYPOINT
     # --------------------------------------------------
