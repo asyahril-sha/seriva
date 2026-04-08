@@ -89,8 +89,11 @@ def main() -> None:
     message_history_store = MessageHistoryStore(max_per_pair=50)
     story_memory_store = StoryMemoryStore()
 
-    llm_cfg = LLMConfig(...)
-    llm = LLMClient(config=llm_cfg)
+    llm_cfg = LLMConfig(
+        base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
+        model=os.getenv("LLM_MODEL", "deepseek-chat"),
+        api_key=os.getenv("LLM_API_KEY"),
+    )
 
     orchestrator = Orchestrator(
         user_store=user_store,
