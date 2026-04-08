@@ -89,6 +89,10 @@ def main() -> None:
     message_history_store = MessageHistoryStore(max_per_pair=50)
     story_memory_store = StoryMemoryStore()
 
+    print("DEBUG: NEW MAIN.PY IS RUNNING")
+    print("BASE_URL:", os.getenv("LLM_BASE_URL"))
+    print("MODEL:", os.getenv("LLM_MODEL"))
+
     llm_cfg = LLMConfig(
         base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
         model=os.getenv("LLM_MODEL", "deepseek-chat"),
@@ -98,7 +102,7 @@ def main() -> None:
     orchestrator = Orchestrator(
         user_store=user_store,
         world_store=world_store,
-        llm_client=llm,
+        llm = LLMClient(llm_cfg)
         milestone_store=milestone_store,
         message_history_store=message_history_store,  # ← TAMBAHKAN
         story_memory_store=story_memory_store,        # ← TAMBAHKAN
