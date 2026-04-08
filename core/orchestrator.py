@@ -86,6 +86,9 @@ from config.constants import (
     LLM_MAX_TOKENS,
 )
 
+# ========== TAMBAHAN UNTUK UNIFIED PROMPT ==========
+from prompts.unified_prompt import build_unified_system_prompt
+
 
 # ==============================
 # STORAGE ABSTRACTION
@@ -161,24 +164,26 @@ class Orchestrator:
         world_store: WorldStateStore,
         llm_client: Optional[LLMClient] = None,
         milestone_store: Optional[MilestoneStore] = None,
-        message_history_store=None,  # ← TAMBAHKAN
-        story_memory_store=None, 
+        message_history_store=None,
+        story_memory_store=None,
     ) -> None:
         self.user_store = user_store
         self.world_store = world_store
         self.llm = llm_client or LLMClient()
 
         self.emotion_engine = EmotionEngine()
-        # ← TAMBAHKAN INIT STORES
+        
+        # Init stores untuk story memory & message history
         self.message_history = message_history_store or MessageHistoryStore()
         self.story_memory = story_memory_store or StoryMemoryStore()
+        
         self.scene_engine = SceneEngine()
         self.world_engine = WorldEngine()
 
         # Memory milestones untuk flashback & kenangan khusus
         self.milestones = milestone_store or MilestoneStore()
 
-        # ← TAMBAHKAN POOL VARIASI
+        # Pool variasi untuk response
         self.gesture_pool = [
             ["(jari gemetar)", "(pipi memerah)"],
             ["(tangan memegang dada)", "(napas memburu)"],
@@ -192,12 +197,14 @@ class Orchestrator:
             "*achhh*", "*uhuk*", "*hufff*", "*gemetar*", "*lemas*"
         ]
 
-      def _get_llm_temperature(self, role_state: RoleState) -> float:
+    # ========== METHOD UNTUK STORY MEMORY & RESPONSE VARIATION ==========
+
+    def _get_llm_temperature(self, role_state: RoleState) -> float:
         """Dapatkan temperature sesuai fase"""
         phase = role_state.intimacy_phase.value
         return LLM_TEMPERATURE_BY_PHASE.get(phase, DEFAULT_LLM_TEMPERATURE)
     
-      def _vary_response(self, response: str, role_state: RoleState) -> str:
+    def _vary_response(self, response: str, role_state: RoleState) -> str:
         """Variasi respon agar tidak monoton"""
         if role_state.intimacy_phase == IntimacyPhase.VULGAR:
             if random.random() < 0.6:
@@ -210,10 +217,11 @@ class Orchestrator:
                 
                 # Ganti gesture
                 for gesture in self.gesture_pool:
-                    if gesture[0] in response or (len(gesture) > 1 and gesture[1] in response):
+                    if gesture and gesture[0] in response:
                         new_gesture = random.choice(self.gesture_pool)
-                        response = response.replace(gesture[0], new_gesture[0])
-                        if len(gesture) > 1 and len(new_gesture) > 1:
+                        if new_gesture:
+                            response = response.replace(gesture[0], new_gesture[0])
+                        if len(gesture) > 1 and len(new_gesture) > 1 and gesture[1] in response:
                             response = response.replace(gesture[1], new_gesture[1])
                         break
         
@@ -222,7 +230,7 @@ class Orchestrator:
         
         return response
     
-      def _detect_and_record_story_beat(self, user_id: str, role_id: str, user_msg: str, response: str):
+    def _detect_and_record_story_beat(self, user_id: str, role_id: str, user_msg: str, response: str):
         """Deteksi momen penting dan catat ke story memory"""
         combined = f"{user_msg} {response}".lower()
         
@@ -256,15 +264,41 @@ class Orchestrator:
             return "Belum ada percakapan sebelumnya."
         
         turns = []
-        for msg in recent[-6:]:  # ambil 6 pesan terakhir
+        for msg in recent[-6:]:
             role = "User" if msg.from_who == "user" else role_id
             turns.append(f"{role}: {msg.content[:100]}")
         
         return "Percakapan terakhir:\n" + "\n".join(turns)
-      
-    # --------------------------------------------------
-    # PUBLIC ENTRYPOINT
-    # --------------------------------------------------
+    
+    def _get_role_personality(self, role_id: str) -> str:
+        """Dapatkan personality prompt untuk role"""
+        personalities = {
+            "ipar_tasha": "Kamu Tasha, ipar yang manja dan genit. Sering menggoda, suka perhatian. Panggil Mas dengan 'Mas'.",
+            "nova": "Kamu Nova, pasangan yang setia dan perhatian. Lembut tapi tegas.",
+            "teman_kantor_ipeh": "Kamu Ipeh, teman kantor yang asik dan mudah akrab.",
+            "teman_lama_widya": "Kamu Widya, teman lama yang hangat dan penuh nostalgia.",
+            "wanita_bersuami_siska": "Kamu Siska, wanita bersuami yang hati-hati tapi tertarik.",
+            "terapis_aghia": "Kamu Aghnia, terapis pijat yang profesional dan hangat.",
+            "terapis_munira": "Kamu Munira, terapis pijat yang ramah.",
+            "teman_spesial_davina": "Kamu Davina, teman spesial yang manja.",
+            "teman_spesial_sallsa": "Kamu Sallsa, teman malam yang playful dan lengket.",
+        }
+        return personalities.get(role_id, "Kamu role yang natural dan hangat.")
+    
+    def _parse_interaction_context(self, message: str) -> InteractionContext:
+        """Parse user message untuk emotion engine"""
+        message_lower = message.lower()
+        
+        if any(word in message_lower for word in ["sayang", "kangen", "cinta"]):
+            return InteractionContext(tone="SOFT", content="AFFECTION", strength=2)
+        elif any(word in message_lower for word in ["buka", "lepas", "gesek"]):
+            return InteractionContext(tone="PLAYFUL", content="FLIRT", strength=3)
+        elif any(word in message_lower for word in ["maaf", "sorry"]):
+            return InteractionContext(tone="SOFT", content="APOLOGY", strength=2)
+        else:
+            return InteractionContext(tone="SOFT", content="AFFECTION", strength=1)
+
+    # ========== PUBLIC ENTRYPONT ==========
 
     def handle_input(self, inp: OrchestratorInput) -> OrchestratorOutput:
         """Proses satu pesan dari user dan kembalikan jawaban."""
@@ -397,26 +431,20 @@ class Orchestrator:
                 role_state.intimacy_detail.role_clothing_removed.append("celana dalam")
 
         # ========== DETEKSI HANDUK ==========
-        # Memberikan handuk (tidak langsung dipakai, harus lepas baju dulu)
         if any(kw in text_lower for kw in ["handuk", "ambil handuk", "kasih handuk", "nih handuk"]):
-            # JANGAN langsung set handuk_tersedia = True
-            # Role harus lepas baju dulu
-            role_state.handuk_dikasih = True  # tandai handuk sudah diberikan
+            role_state.handuk_dikasih = True
             logger.info(f"🧺 Handuk diberikan ke role, menunggu role lepas baju")
 
-        # Melepas handuk
         if any(kw in text_lower for kw in ["lepas handuk", "buka handuk", "lepaskan handuk", "udah gak usah pake handuk"]):
             role_state.handuk_tersedia = False
             role_state.handuk_dikasih = False
             logger.info(f"🧺 Handuk dilepas oleh role")
 
-        # Deteksi role sudah lepas baju (dari perintah Mas)
         if any(kw in text_lower for kw in ["buka baju", "buka bra", "buka celana", "buka cd", "lepas baju", "lepas bra", "lepas celana", "lepas cd"]):
             if getattr(role_state, 'handuk_dikasih', False):
                 role_state.handuk_tersedia = True
                 logger.info(f"🧺 Handuk dipakai setelah role telanjang")
         
-        # Deteksi dari dialog role (role mengaku sudah lepas baju)
         if any(kw in text_lower for kw in ["bajuku udah lepas", "udah lepas tadi", "aku udah buka", "telanjang"]):
             if getattr(role_state, 'handuk_dikasih', False):
                 role_state.handuk_tersedia = True
@@ -425,31 +453,28 @@ class Orchestrator:
         # ========== DETEKSI CLIMAX & EJAKULASI ==========
         text_lower = inp.text.lower()
         
-        # ---- ROLE CLIMAX (role mau climax / climax) ----
+        # ---- ROLE CLIMAX ----
         if any(kw in text_lower for kw in ["aku mau climax", "aku gak tahan dikit lagi keluar", "climax", "aku mau crot", "enak banget", "udah mau climax"]):
             if not role_state.role_wants_climax:
                 role_state.role_wants_climax = True
                 logger.info(f"💦 Role {role_state.role_id} mau climax")
         
-        # Role benar-benar climax (setelah gerakan/desahan)
         if any(kw in text_lower for kw in ["climax", "cot", "udah climax", "achhh climax"]):
             role_state.role_climax_count += 1
             role_state.role_wants_climax = False
             role_state.role_holding_climax = False
             logger.info(f"💦 Role {role_state.role_id} CLIMAX! (total: {role_state.role_climax_count})")
         
-        # Role menahan climax (pending)
         if any(kw in text_lower for kw in ["tahan dulu", "belum", "jangan dulu", "pending", "tunggu"]):
             role_state.role_holding_climax = True
             logger.info(f"⏸️ Role {role_state.role_id} menahan climax")
         
-        # ---- MAS CLIMAX (user mau climax / climax) ----
+        # ---- MAS CLIMAX ----
         if any(kw in text_lower for kw in ["aku mau climax", "aku mau keluar", "aku mau crot", "udah mau keluar"]):
             if not role_state.mas_wants_climax:
                 role_state.mas_wants_climax = True
                 logger.info(f"💦 Mas mau climax")
         
-        # Mas climax (eksekusi)
         if any(kw in text_lower for kw in ["keluar dimana", "keluarin dimana", "crot dimana", "climax dimana"]):
             if not role_state.mas_has_climaxed:
                 role_state.mas_has_climaxed = True
@@ -457,18 +482,15 @@ class Orchestrator:
                 role_state.mas_holding_climax = False
                 logger.info(f"💦 Mas CLIMAX! (pertama kali di sesi ini)")
                 
-                # Pindah ke fase AFTER setelah climax
                 if role_state.intimacy_phase == IntimacyPhase.VULGAR:
                     role_state.intimacy_phase = IntimacyPhase.AFTER
                     logger.info(f"🔄 Pindah ke fase AFTER setelah climax")
         
-        # Mas menahan climax
         if any(kw in text_lower for kw in ["tahan dulu", "belum mau crot", "jangan dulu", "tunggu aku"]):
             role_state.mas_holding_climax = True
             logger.info(f"⏸️ Mas menahan climax")
         
         # ---- KONFIRMASI BUANG DI DALAM/LUAR ----
-        # Role nanya preferensi (otomatis)
         if any(kw in text_lower for kw in ["buang di dalam", "di dalam aja", "di dalam yah", "dalam", "inside"]):
             role_state.prefer_buang_di_dalam = True
             role_state.last_ejakulasi_inside = True
@@ -481,7 +503,6 @@ class Orchestrator:
             role_state.pending_ejakulasi_question = False
             logger.info(f"💦 Preferensi ejakulasi: DI LUAR")
         
-        # Role menanyakan ke Mas (pending question)
         if any(kw in text_lower for kw in ["buang di mana", "di dalam atau luar", "dimana mau dibuang", "mau dimana"]):
             role_state.pending_ejakulasi_question = True
             logger.info(f"❓ Role bertanya preferensi ejakulasi")
@@ -536,6 +557,103 @@ class Orchestrator:
             active_role_id=user_state.active_role_id,
             session_mode=user_state.global_session_mode,
         )
+
+    # ========== ASYNC GENERATE RESPONSE (UNTUK POLLING MODE) ==========
+
+    async def generate_response(self, user_id: str, role_id: str, user_message: str) -> str:
+        """Generate response dengan semua enhancement (untuk polling mode)"""
+        
+        # Get states
+        user_state = self._load_or_init_user_state(user_id)
+        role_state = user_state.get_or_create_role_state(role_id)
+        
+        # Simpan user message ke history
+        self.message_history.add_message(
+            user_id=user_id,
+            role_id=role_id,
+            from_who="user",
+            timestamp=time.time(),
+            content=user_message
+        )
+        
+        # Deteksi pindah lokasi untuk story memory
+        if "pindah ke" in user_message.lower():
+            match = re.search(r"pindah ke (\w+)", user_message.lower())
+            if match:
+                self.story_memory.update_location(user_id, role_id, match.group(1))
+        
+        # Dapatkan konteks
+        story_context = self.story_memory.get_story_prompt(user_id, role_id)
+        chat_history = self._get_chat_history_context(user_id, role_id)
+        
+        # Build prompt dengan semua konteks
+        system_prompt = build_unified_system_prompt(
+            role_state=role_state,
+            role_name=role_id,
+            role_personality=self._get_role_personality(role_id),
+            vulgar_allowed=role_state.intimacy_phase == IntimacyPhase.VULGAR,
+            extra_rules=f"""
+═══════════════════════════════════════════
+📜 KONTEKS CERITA (WAJIB DIIKUTI):
+═══════════════════════════════════════════
+{story_context}
+
+💬 HISTORY PERCAKAPAN:
+{chat_history}
+
+🎯 ATURAN TAMBAHAN:
+1. RESPON HARUS SELARAS dengan alur cerita di atas!
+2. JANGAN mengubah fakta yang sudah terjadi!
+3. JANGAN ulang frase yang sama dari history!
+4. Gunakan variasi gesture dan inner thought!
+═══════════════════════════════════════════
+"""
+        )
+        
+        # Generate dengan dynamic parameters
+        temperature = self._get_llm_temperature(role_state)
+        
+        response = self.llm.generate_text(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=temperature,
+            top_p=LLM_TOP_P,
+            frequency_penalty=LLM_FREQUENCY_PENALTY,
+            presence_penalty=LLM_PRESENCE_PENALTY,
+            max_tokens=LLM_MAX_TOKENS
+        )
+        
+        # Variasi respon
+        response = self._vary_response(response, role_state)
+        
+        # Simpan response ke history
+        self.message_history.add_message(
+            user_id=user_id,
+            role_id=role_id,
+            from_who="assistant",
+            timestamp=time.time(),
+            content=response
+        )
+        
+        # Update story memory
+        self.story_memory.update_scene_summary(
+            user_id, role_id, 
+            f"User: {user_message[:150]}\n{role_id}: {response[:150]}"
+        )
+        
+        # Deteksi story beat
+        self._detect_and_record_story_beat(user_id, role_id, user_message, response)
+        
+        # Update emotion state
+        ctx = self._parse_interaction_context(user_message)
+        self.emotion_engine.register_user_interaction(user_state, role_id, ctx)
+        
+        # Simpan state
+        self._save_all(user_state, self._load_or_init_world_state())
+        
+        return response
 
     # --------------------------------------------------
     # INTERNAL HELPERS: LOAD/SAVE
