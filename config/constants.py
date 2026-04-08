@@ -135,6 +135,38 @@ MAX_DRAMA_LEVEL = 100
 # Nama panggilan default ke user
 DEFAULT_USER_CALL = "Mas"
 
+# ==============================
+# LLM CONFIGURATION - ENHANCED
+# ==============================
+
+# Temperature dinamis berdasarkan fase
+LLM_TEMPERATURE_BY_PHASE = {
+    "AWAL": 0.75,
+    "DEKAT": 0.78,
+    "INTIM": 0.80,
+    "VULGAR": 0.85,
+    "AFTER": 0.70,
+}
+
+DEFAULT_LLM_TEMPERATURE = 0.75
+LLM_TOP_P = 0.95
+LLM_FREQUENCY_PENALTY = 0.5   # Kurangi pengulangan kata
+LLM_PRESENCE_PENALTY = 0.5    # Dorong topik baru
+LLM_MAX_TOKENS = 150          # Batasi panjang respon
+
+# ==============================
+# EMOTION ENGINE GAINS (DIPERBESAR)
+# ==============================
+
+POSITIVE_LOVE_GAIN = 3
+POSITIVE_LONGING_GAIN = 2
+POSITIVE_COMFORT_GAIN = 2
+
+RELATIONSHIP_GAIN_SMALL = 2
+RELATIONSHIP_GAIN_MEDIUM = 3
+
+INTIMACY_INCREASE_THRESHOLD = 5  # dari 10 turun ke 5
+ABSENCE_LONGING_GAIN_PER_DAY = 5  # dari 3 naik ke 5
 
 def get_role_info(role_id: str) -> RoleInfo:
     """Ambil RoleInfo untuk role_id tertentu.
