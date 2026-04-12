@@ -12,9 +12,10 @@ from typing import Callable, Awaitable, TypeVar, ParamSpec
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config.constants import list_role_summaries, ROLE_ID_NOVA
+from config.constants import list_role_summaries, ROLE_ID_NOVA, ALL_ROLE_IDS
 from core.orchestrator import Orchestrator, OrchestratorInput, OrchestratorOutput
 from core.state_models import SessionMode
+
 
 logger = logging.getLogger(__name__)
 
@@ -214,10 +215,8 @@ def set_role_handler(orchestrator: Orchestrator, admin_id: str):
 # ==============================
 # HANDLER END / STATUS
 # ==============================
-
-
 def end_session_handler(orchestrator: Orchestrator, admin_id: str):
-    """/batal atau /end: akhiri sesi khusus (pakai logika Orchestrator)."""
+    """/batal atau /end: akhiri sesi khusus + reset semua role kecuali Nova."""
 
     @require_admin(admin_id)
     async def _handler(
@@ -229,6 +228,9 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
         if chat is None or user is None:
             return
 
+        # =========================
+        # CALL ORCHESTRATOR DULU
+        # =========================
         inp = OrchestratorInput(
             user_id=str(user.id),
             text="/batal",
@@ -236,7 +238,47 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
             is_command=True,
             command_name="batal",
         )
+
         out: OrchestratorOutput = orchestrator.handle_input(inp)
+
+        # =========================
+        # LOAD USER STATE
+        # =========================
+        user_state = orchestrator._load_or_init_user_state(str(user.id))  # type: ignore
+
+        # =========================
+        # RESET SEMUA ROLE KECUALI NOVA (FULL SAFE)
+        # =========================
+        all_roles = set(ALL_ROLE_IDS) | set(user_state.role_states.keys())
+
+        for role_id in all_roles:
+            if role_id == ROLE_ID_NOVA:
+                continue
+
+            role_state = user_state.get_or_create_role_state(role_id)
+
+            if hasattr(role_state, "reset_full_state"):
+                role_state.reset_full_state()
+            else:
+                role_state.reset_intimacy_state()
+
+                if hasattr(role_state, "scene"):
+                    role_state.scene = type(role_state.scene)()
+
+                if hasattr(role_state, "emotions"):
+                    role_state.emotions = type(role_state.emotions)()
+
+        # =========================
+        # SAVE SEKALI SAJA (IMPORTANT)
+        # =========================
+        orchestrator._save_all(
+            user_state,
+            orchestrator._load_or_init_world_state()
+        )  # type: ignore
+
+        # =========================
+        # SEND RESPONSE SEKALI
+        # =========================
         await chat.send_message(out.reply_text)
 
     return _handler
@@ -332,7 +374,12 @@ def status_handler(orchestrator: Orchestrator, admin_id: str):
             preferensi_buang = "BELUM DITENTUKAN"
         
         # Ejakulasi terakhir
-        last_ejakulasi_text = "DI DALAM" if last_ejakulasi_inside else "DI LUAR" if last_ejakulasi_inside is not None else "BELUM PERNAH"
+        if last_ejakulasi_inside is None:
+            last_ejakulasi_text = "BELUM PERNAH"
+        elif last_ejakulasi_inside:
+            last_ejakulasi_text = "DI DALAM"
+        else:
+            last_ejakulasi_text = "DI LUAR"
         
         # ========== BUILD PESAN STATUS ==========
         text_lines = [
