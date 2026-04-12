@@ -59,7 +59,7 @@ class IntimacyProgressionEngine:
     
         text = (user_text + " " + response_text).lower()
         rel_level = role_state.relationship.relationship_level
-        current_turn = role_state.total_turns
+        current_turn = getattr(role_state, "total_turns", 0)
 
         # =========================
         # AUTO ESCALATION (CONTROLLED)
