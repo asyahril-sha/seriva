@@ -566,6 +566,7 @@ class Orchestrator:
         # Get states
         user_state = self._load_or_init_user_state(user_id)
         role_state = user_state.get_or_create_role_state(role_id)
+        role_state.total_turns += 1
         
         # Simpan user message ke history
         self.message_history.add_message(
