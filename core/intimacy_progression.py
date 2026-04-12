@@ -64,7 +64,9 @@ class IntimacyProgressionEngine:
         # =========================
         # AUTO ESCALATION (CONTROLLED)
         # =========================
-        if rel_level >= 10 and role_state.intimacy_phase == IntimacyPhase.INTIM:
+        if rel_level >= 10 \
+        and role_state.intimacy_phase == IntimacyPhase.INTIM \
+        and current_turn >= cls.THRESHOLDS[IntimacyPhase.VULGAR]["min_turns"]:
             if cls._can_escalate(role_state, IntimacyPhase.VULGAR):
                 role_state.intimacy_phase = IntimacyPhase.VULGAR
                 role_state.is_high_intimacy = True
