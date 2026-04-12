@@ -12,7 +12,7 @@ from typing import Callable, Awaitable, TypeVar, ParamSpec
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config.constants import list_role_summaries, ROLE_ID_NOVA, ALL_ROLE_IDS
+from config.constants import list_role_summaries, ROLE_ID_NOVA, list_role_ids
 from core.orchestrator import Orchestrator, OrchestratorInput, OrchestratorOutput
 from core.state_models import SessionMode
 
@@ -249,7 +249,7 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
         # =========================
         # RESET SEMUA ROLE KECUALI NOVA (FULL SAFE)
         # =========================
-        all_roles = set(ALL_ROLE_IDS) | set(user_state.role_states.keys())
+        all_roles = set(list_role_ids()) | set(user_state.role_states.keys())
 
         for role_id in all_roles:
             if role_id == ROLE_ID_NOVA:
