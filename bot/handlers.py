@@ -249,7 +249,7 @@ def end_session_handler(orchestrator: Orchestrator, admin_id: str):
         # =========================
         # RESET SEMUA ROLE KECUALI NOVA (FULL SAFE)
         # =========================
-        all_roles = set(list_role_ids()) | set(user_state.role_states.keys())
+        all_roles = set(list_role_ids()) | set(getattr(user_state, "role_states", {}).keys())
 
         for role_id in all_roles:
             if role_id == ROLE_ID_NOVA:
