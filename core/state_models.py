@@ -402,6 +402,7 @@ class RoleState:
     session: RoleSessionState = field(default_factory=RoleSessionState)
     
     total_positive_interactions: int = 0
+    total_turns: int = 0
 
     # Riwayat chat singkat per role (ID pesan atau text pendek, detail di memory/message_history)
     last_message_snippets: List[str] = field(default_factory=list)
