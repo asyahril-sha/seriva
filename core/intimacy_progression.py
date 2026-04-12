@@ -38,49 +38,96 @@ class IntimacyProgressionEngine:
             "keywords": ["kontol", "memek", "basah", "keras", "masuk", "ngewe", "sex"],
         },
     }
+
+    @classmethod
+    def _can_escalate(cls, role_state: RoleState, target_phase: IntimacyPhase) -> bool:
+        phase_order = [
+            IntimacyPhase.AWAL,
+            IntimacyPhase.DEKAT,
+            IntimacyPhase.INTIM,
+            IntimacyPhase.VULGAR
+        ]
+    
+        current_idx = phase_order.index(role_state.intimacy_phase)
+        target_idx = phase_order.index(target_phase)
+    
+        return target_idx <= current_idx + 1
     
     @classmethod
     def update_phase_and_scene(cls, role_state: RoleState, user_text: str, response_text: str) -> bool:
         """Update fase dan scene sequence berdasarkan percakapan."""
-        
+    
         text = (user_text + " " + response_text).lower()
         rel_level = role_state.relationship.relationship_level
-        
-        # Level 10-12 = otomatis fase VULGAR
-        if rel_level >= 10 and role_state.intimacy_phase != IntimacyPhase.VULGAR:
-            role_state.intimacy_phase = IntimacyPhase.VULGAR
-            role_state.is_high_intimacy = True
-            return True
-        
-        # Deteksi dari teks untuk fase VULGAR
-        vulgar_keywords = ["kontol", "memek", "payudara", "pantat", "ngewe", "sex", "masuk", "basah", "keras", "enak banget"]
-        if any(kw in text for kw in vulgar_keywords):
-            if role_state.intimacy_phase not in [IntimacyPhase.VULGAR, IntimacyPhase.AFTER]:
+        current_turn = role_state.total_turns
+
+        # =========================
+        # AUTO ESCALATION (CONTROLLED)
+        # =========================
+        if rel_level >= 10 and role_state.intimacy_phase == IntimacyPhase.INTIM:
+            if cls._can_escalate(role_state, IntimacyPhase.VULGAR):
                 role_state.intimacy_phase = IntimacyPhase.VULGAR
+                role_state.is_high_intimacy = True
                 return True
-        
-        # Deteksi after sex
+
+        # =========================
+        # VULGAR KEYWORD DETECTION
+        # =========================
+        vulgar_keywords = ["kontol", "memek", "toket", "pantat", "ngewe", "sex", "masuk", "becek", "ngaceng"]
+
+        if any(kw in text for kw in vulgar_keywords):
+    
+            # terlalu cepat → ignore
+            if current_turn < cls.THRESHOLDS[IntimacyPhase.VULGAR]["min_turns"]:
+                return False
+
+            # belum fase INTIM → ignore
+            if role_state.intimacy_phase != IntimacyPhase.INTIM:
+                return False
+
+            # lompat fase → block
+            if not cls._can_escalate(role_state, IntimacyPhase.VULGAR):
+                return False
+
+           
+            role_state.intimacy_phase = IntimacyPhase.VULGAR
+            return True
+
+        # =========================
+        # AFTER DETECTION
+        # =========================
         after_keywords = ["selesai", "capek", "tidur", "istirahat", "udah", "habis"]
+
         if any(kw in text for kw in after_keywords) and role_state.intimacy_phase == IntimacyPhase.VULGAR:
             role_state.intimacy_phase = IntimacyPhase.AFTER
             return True
-        
-        # Progres normal berdasarkan urutan scene
+
+        # =========================
+        # SCENE PROGRESSION
+        # =========================
         new_sequence = role_state.get_next_sequence(user_text)
+
         if new_sequence != role_state.current_sequence:
+
             if new_sequence in [SceneSequence.SEX_MULAI, SceneSequence.SEX_INTENS, SceneSequence.CLIMAX]:
-                role_state.intimacy_phase = IntimacyPhase.VULGAR
+                if cls._can_escalate(role_state, IntimacyPhase.VULGAR):
+                    role_state.intimacy_phase = IntimacyPhase.VULGAR
+
             elif new_sequence in [SceneSequence.PELUKAN, SceneSequence.CIUMAN, SceneSequence.PETTING]:
                 if role_state.intimacy_phase == IntimacyPhase.AWAL:
                     role_state.intimacy_phase = IntimacyPhase.DEKAT
                 elif role_state.intimacy_phase == IntimacyPhase.DEKAT:
                     role_state.intimacy_phase = IntimacyPhase.INTIM
+
             elif new_sequence in [SceneSequence.AFTER_SEX, SceneSequence.TIDUR]:
                 role_state.intimacy_phase = IntimacyPhase.AFTER
-            
+
             role_state.current_sequence = new_sequence
             return True
-        
+
+        # =========================
+        # NO CHANGE
+        # =========================
         return False
     
     @classmethod
@@ -116,7 +163,7 @@ class IntimacyProgressionEngine:
             IntimacyPhase.AWAL: ["malu", "gugup", "nunduk", "kaku"],
             IntimacyPhase.DEKAT: ["manja", "senyum", "deketin", "canggung_tapi_suka"],
             IntimacyPhase.INTIM: ["hangat", "peluk", "bisik", "tatap"],
-            IntimacyPhase.VULGAR: ["nafsu", "basah", "desah", "gerak"],
+            IntimacyPhase.VULGAR: ["nafsu", "becek", "desah", "gerak"],
             IntimacyPhase.AFTER: ["lemas", "tenang", "hangat", "diam_manis"],
         }
         
