@@ -150,8 +150,8 @@ LLM_TEMPERATURE_BY_PHASE = {
 
 DEFAULT_LLM_TEMPERATURE = 0.75
 LLM_TOP_P = 0.95
-LLM_FREQUENCY_PENALTY = 0.5   # Kurangi pengulangan kata
-LLM_PRESENCE_PENALTY = 0.5    # Dorong topik baru
+LLM_FREQUENCY_PENALTY = 0.8   # Kurangi pengulangan kata
+LLM_PRESENCE_PENALTY = 0.7   # Dorong topik baru
 LLM_MAX_TOKENS = 150          # Batasi panjang respon
 
 # ==============================
