@@ -201,8 +201,19 @@ class Orchestrator:
 
     def _get_llm_temperature(self, role_state: RoleState) -> float:
         """Dapatkan temperature sesuai fase"""
-        phase = role_state.intimacy_phase.value
-        return LLM_TEMPERATURE_BY_PHASE.get(phase, DEFAULT_LLM_TEMPERATURE)
+        phase = role_state.intimacy_phase
+        phase_keys = (
+            getattr(phase, "name", None),
+            getattr(phase, "value", None),
+        )
+
+        for key in phase_keys:
+            if isinstance(key, str):
+                normalized_key = key.upper()
+                if normalized_key in LLM_TEMPERATURE_BY_PHASE:
+                    return LLM_TEMPERATURE_BY_PHASE[normalized_key]
+
+        return DEFAULT_LLM_TEMPERATURE
     
     def _vary_response(self, response: str, role_state: RoleState) -> str:
         """Variasi respon agar tidak monoton"""
@@ -356,7 +367,11 @@ class Orchestrator:
         role_impl = get_role(role_state.role_id)
         messages = role_impl.build_messages(user_state, role_state, inp.text)
 
-        reply_text = self.llm.generate_text(messages)
+        temperature = self._get_llm_temperature(role_state)
+        reply_text = self.llm.generate_text(
+            messages,
+            temperature=temperature,
+        )
 
         # ========== BARU: Memory & Intimacy Updates ==========
         from core.intimacy_progression import IntimacyProgressionEngine
@@ -566,7 +581,6 @@ class Orchestrator:
         # Get states
         user_state = self._load_or_init_user_state(user_id)
         role_state = user_state.get_or_create_role_state(role_id)
-        role_state.total_turns += 1
         
         # Simpan user message ke history
         self.message_history.add_message(
