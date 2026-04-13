@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import logging
 import os
-import random
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -80,6 +79,7 @@ class LLMClient:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         extra_params: Optional[Dict[str, Any]] = None,
+        **provider_params: Any,
     ) -> str:
         """Panggil LLM dan kembalikan teks jawaban assistant.
 
@@ -106,15 +106,15 @@ class LLMClient:
             "messages": messages,
             "temperature": float(temperature),
             "max_tokens": int(max_tokens),
-
-            # 🔥 TAMBAHAN PENTING
-            "frequency_penalty": 0.8,
-            "presence_penalty": 0.7,
-            "stop": ["\n\n\n"]
         }
 
+        merged_extra_params: Dict[str, Any] = {}
         if extra_params:
-            payload.update(extra_params)
+            merged_extra_params.update(extra_params)
+        if provider_params:
+            merged_extra_params.update(provider_params)
+        if merged_extra_params:
+            payload.update(merged_extra_params)
 
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",
@@ -159,36 +159,7 @@ class LLMClient:
             if not isinstance(content, str):
                 raise TypeError("content bukan string")
 
-            # =========================
-            # 🔥 CLEAN + ANTI DUPLICATE
-            # =========================
-            content = content.strip()
-
-            if len(messages) >= 2:
-                last_assistant = None
-
-                for m in reversed(messages):
-                    if m["role"] == "assistant":
-                        last_assistant = m["content"].strip()
-                        break
-
-                # 🔥 exact + semi duplicate check
-                if last_assistant:
-                    similarity = content[:120] == last_assistant[:120]
-
-                    if similarity:
-                        fallbacks = [
-                            " *tersenyum kecil, mencoba mengalihkan topik*",
-                            " *mengalihkan pandangan, lalu tersenyum pelan*",
-                            " *terdiam sebentar, lalu bicara pelan dengan nada berbeda*",
-                        ]
-
-                        content += random.choice(fallbacks)
-
             return content
-
-        
         except Exception as exc:  # noqa: BLE001
             logger.exception("Response LLM tidak terduga: %s", data)
             raise RuntimeError("Format response LLM tidak dikenal") from exc
-
